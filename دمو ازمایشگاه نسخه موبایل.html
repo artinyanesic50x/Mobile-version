@@ -1,0 +1,3452 @@
+<!DOCTYPE html>
+<html lang="fa" dir="rtl">
+<head>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no, viewport-fit=cover" />
+<meta name="theme-color" content="#05080f" />
+<meta name="apple-mobile-web-app-capable" content="yes" />
+<meta name="apple-mobile-web-app-status-bar-style" content="black-translucent" />
+<title>سیستم شبیه ساز ناوبری کوانتومی</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Vazirmatn:wght@400;500;600;700&family=JetBrains+Mono:wght@400;500;600&display=swap" rel="stylesheet">
+<script src="https://cdnjs.cloudflare.com/ajax/libs/three.js/r128/three.min.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.0/dist/chart.umd.min.js"></script>
+<style>
+/* ============================================================
+   DESIGN TOKENS
+   ============================================================ */
+:root{
+  --bg-0:#05080f;
+  --bg-1:#080d17;
+  --bg-2:#0b1220;
+
+  --surface:rgba(10,16,27,0.78);
+  --surface-solid:#0a101b;
+  --surface-hi:rgba(18,26,42,0.92);
+
+  --line:#161f31;
+  --line-2:#1e2a40;
+  --line-3:#2a3a55;
+
+  --ink:#e6edf7;
+  --ink-2:#9aa8bf;
+  --ink-3:#6a7791;
+  --ink-4:#4a5568;
+
+  --cyan:#4be8de;
+  --cyan-2:#2ba9a2;
+  --cyan-dim:rgba(75,232,222,0.12);
+
+  --amber:#f5a623;
+  --red:#ff5d6c;
+  --green:#5eead4;
+  --violet:#a78bfa;
+  --orange:#fb923c;
+
+  --radius:12px;
+  --radius-sm:8px;
+  --radius-lg:16px;
+
+  --accent:var(--cyan);
+
+  --safe-top: env(safe-area-inset-top, 0px);
+  --safe-bottom: env(safe-area-inset-bottom, 0px);
+  --safe-left: env(safe-area-inset-left, 0px);
+  --safe-right: env(safe-area-inset-right, 0px);
+}
+
+/* ============================================================
+   BASE
+   ============================================================ */
+*{box-sizing:border-box;}
+html,body{
+  margin:0;padding:0;background:var(--bg-0);color:var(--ink);
+  font-family:'Vazirmatn',-apple-system,BlinkMacSystemFont,sans-serif;
+  overflow:hidden;height:100%;width:100%;
+  font-size:13px;-webkit-font-smoothing:antialiased;
+  text-rendering:optimizeLegibility;
+  -webkit-tap-highlight-color: transparent;
+  -webkit-touch-callout: none;
+  overscroll-behavior: none;
+  touch-action: manipulation;
+}
+button{font-family:inherit;color:inherit;}
+.mono{font-family:'JetBrains Mono',monospace;}
+
+/* ============================================================
+   SCENE
+   ============================================================ */
+#scene-container{
+  position:fixed;inset:0;
+  background:radial-gradient(ellipse 80% 60% at 50% 45%, #0a1524 0%, #05080f 75%);
+}
+#scene-container::after{
+  content:'';position:absolute;inset:0;pointer-events:none;
+  background:radial-gradient(ellipse at center, transparent 45%, rgba(5,8,15,0.6) 100%);
+}
+canvas#three-canvas{
+  display:block;width:100%;height:100%;
+  touch-action:none;
+  user-select:none;
+  -webkit-user-select:none;
+}
+
+/* ============================================================
+   HUD LAYOUT
+   ============================================================ */
+.hud{position:fixed;z-index:10;pointer-events:none;}
+.hud *{pointer-events:auto;}
+
+/* ============================================================
+   TOPBAR
+   ============================================================ */
+#topbar{
+  top:0;left:0;right:0;
+  display:flex;justify-content:space-between;align-items:flex-start;
+  gap:20px;padding:20px 24px;
+  padding-top:calc(20px + var(--safe-top));
+  background:linear-gradient(to bottom, rgba(5,8,15,0.92) 0%, rgba(5,8,15,0) 100%);
+}
+#title-block .eyebrow{
+  font-size:9.5px;letter-spacing:2.8px;color:var(--cyan);
+  margin-bottom:7px;font-weight:600;text-transform:uppercase;
+  opacity:.9;
+}
+#title-block h1{
+  font-size:16.5px;margin:0;font-weight:700;
+  letter-spacing:-0.2px;line-height:1.3;
+}
+#title-block p{
+  font-size:11.5px;color:var(--ink-3);margin:6px 0 0;
+  max-width:420px;line-height:1.75;
+}
+
+#topbtns{
+  display:flex;gap:7px;flex-wrap:wrap;
+  max-width:720px;justify-content:flex-end;
+}
+
+/* ============================================================
+   BUTTONS
+   ============================================================ */
+.btn{
+  display:inline-flex;align-items:center;gap:7px;
+  padding:9px 13px;border-radius:10px;
+  font-size:12px;font-weight:600;
+  cursor:pointer;border:1px solid var(--line-2);
+  background:var(--surface);color:var(--ink);
+  backdrop-filter:blur(16px) saturate(150%);
+  -webkit-backdrop-filter:blur(16px) saturate(150%);
+  transition:border-color .16s ease, background .16s ease, color .16s ease, transform .12s ease, box-shadow .16s ease;
+  white-space:nowrap;line-height:1;
+  user-select:none;-webkit-user-select:none;
+}
+.btn:hover{
+  border-color:var(--line-3);
+  background:var(--surface-hi);
+}
+.btn:active{transform:translateY(1px);}
+.btn svg{width:14px;height:14px;flex-shrink:0;}
+
+.btn.active{
+  background:var(--cyan-dim);
+  border-color:rgba(75,232,222,0.45);
+  color:var(--cyan);
+  box-shadow:0 0 0 1px rgba(75,232,222,0.08), 0 0 20px rgba(75,232,222,0.14);
+}
+.btn.danger{
+  border-color:rgba(255,93,108,0.35);
+  color:var(--red);
+  background:rgba(255,93,108,0.07);
+}
+.btn.danger:hover{
+  background:rgba(255,93,108,0.13);
+  border-color:rgba(255,93,108,0.55);
+}
+.btn.on{
+  border-color:rgba(75,232,222,0.45);
+  color:var(--cyan);
+  background:var(--cyan-dim);
+}
+.btn.off{
+  border-color:rgba(255,93,108,0.35);
+  color:var(--red);
+  background:rgba(255,93,108,0.07);
+}
+
+/* ============================================================
+   LEFT PANEL (desktop default)
+   ============================================================ */
+#panel-left{
+  top:100px;right:24px;width:252px;
+  display:flex;flex-direction:column;gap:10px;
+  max-height:calc(100vh - 200px);
+  overflow-y:auto;z-index:10;
+  scrollbar-width:thin;scrollbar-color:var(--line-3) transparent;
+}
+#panel-left::-webkit-scrollbar{width:4px;}
+#panel-left::-webkit-scrollbar-track{background:transparent;}
+#panel-left::-webkit-scrollbar-thumb{background:var(--line-3);border-radius:4px;}
+
+/* ============================================================
+   PANELS
+   ============================================================ */
+.panel{
+  background:var(--surface);
+  border:1px solid var(--line);
+  border-radius:var(--radius);
+  padding:14px;
+  backdrop-filter:blur(18px) saturate(150%);
+  -webkit-backdrop-filter:blur(18px) saturate(150%);
+  box-shadow:inset 0 1px 0 rgba(255,255,255,0.025);
+}
+.panel-title{
+  font-size:10.5px;color:var(--ink-3);
+  margin-bottom:12px;letter-spacing:.6px;
+  font-weight:600;
+  display:flex;align-items:center;gap:7px;
+}
+.panel-title::before{
+  content:'';width:2px;height:11px;border-radius:2px;
+  background:var(--cyan);opacity:.55;
+}
+
+/* ============================================================
+   ROWS + SLIDERS
+   ============================================================ */
+.row{margin-bottom:13px;}
+.row:last-child{margin-bottom:0;}
+.row-label{
+  display:flex;justify-content:space-between;align-items:center;
+  gap:8px;font-size:11px;color:var(--ink-3);margin-bottom:7px;
+}
+.row-label b{
+  color:var(--cyan);font-family:'JetBrains Mono',monospace;
+  font-weight:600;font-size:11px;letter-spacing:-0.2px;
+}
+
+input[type=range]{
+  -webkit-appearance:none;appearance:none;
+  width:100%;height:4px;border-radius:3px;
+  background:var(--line-2);outline:none;cursor:pointer;
+  display:block;
+  touch-action: manipulation;
+}
+input[type=range]::-webkit-slider-thumb{
+  -webkit-appearance:none;width:18px;height:18px;border-radius:50%;
+  background:var(--cyan);cursor:pointer;border:none;
+  box-shadow:0 0 0 3px rgba(75,232,222,0.14), 0 0 12px rgba(75,232,222,0.45);
+  transition:transform .15s ease, box-shadow .15s ease;
+}
+input[type=range]::-webkit-slider-thumb:hover{
+  transform:scale(1.15);
+  box-shadow:0 0 0 4px rgba(75,232,222,0.2), 0 0 16px rgba(75,232,222,0.6);
+}
+input[type=range]::-moz-range-thumb{
+  width:18px;height:18px;border-radius:50%;background:var(--cyan);border:none;
+  cursor:pointer;
+  box-shadow:0 0 0 3px rgba(75,232,222,0.14), 0 0 12px rgba(75,232,222,0.45);
+}
+
+/* ============================================================
+   SEGMENTED CONTROL
+   ============================================================ */
+.seg{display:flex;gap:5px;flex-wrap:wrap;}
+.seg .btn{flex:1;justify-content:center;padding:7px 6px;font-size:11px;}
+
+/* ============================================================
+   QUANTUM HUD
+   ============================================================ */
+#quantumHud{
+  position:absolute;left:24px;top:100px;
+  width:150px;height:172px;z-index:10;
+}
+#quantumHud canvas{
+  width:150px;height:150px;display:block;
+  border-radius:var(--radius);
+  border:1px solid var(--line);
+  background:var(--surface);
+  backdrop-filter:blur(18px);
+  -webkit-backdrop-filter:blur(18px);
+}
+#quantumHud .lbl{
+  position:absolute;bottom:0;left:0;right:0;
+  text-align:center;font-size:9.5px;
+  color:var(--ink-3);letter-spacing:1px;
+  text-transform:uppercase;font-weight:600;
+}
+
+/* ============================================================
+   BOTTOM STATS
+   ============================================================ */
+#panel-bottom{
+  bottom:18px;left:24px;right:24px;
+  display:flex;gap:10px;align-items:stretch;flex-wrap:wrap;
+  z-index:10;
+}
+.stat{
+  min-width:118px;padding:12px 14px;
+  display:flex;flex-direction:column;justify-content:center;
+}
+.stat .k{
+  font-size:10px;color:var(--ink-3);
+  margin-bottom:5px;letter-spacing:.3px;line-height:1.3;
+}
+.stat .v{
+  font-family:'JetBrains Mono',monospace;
+  font-size:19px;font-weight:600;line-height:1;
+  letter-spacing:-0.5px;
+}
+#chart-wrap{
+  flex:1;min-width:240px;height:74px;
+  padding:10px 12px;
+}
+#chart-wrap canvas{display:block;width:100%!important;height:100%!important;}
+
+#hint{
+  position:fixed;bottom:20px;right:24px;
+  font-size:10.5px;color:var(--ink-4);
+  z-index:10;letter-spacing:.2px;
+}
+
+/* ============================================================
+   PLATFORM SELECTOR
+   ============================================================ */
+#platformTab{
+  position:absolute;left:50%;top:16px;transform:translateX(-50%);
+  width:400px;z-index:20;
+  background:rgba(8,13,23,0.9);
+  border:1px solid var(--line-2);
+  border-radius:var(--radius);
+  padding:11px 13px;
+  backdrop-filter:blur(20px) saturate(150%);
+  -webkit-backdrop-filter:blur(20px) saturate(150%);
+  box-shadow:0 20px 50px rgba(0,0,0,0.5), inset 0 1px 0 rgba(255,255,255,0.03);
+}
+.pt-head{
+  display:flex;justify-content:space-between;align-items:center;
+  gap:10px;margin-bottom:9px;
+}
+.pt-title{
+  font-size:11.5px;color:var(--cyan);font-weight:600;
+  display:flex;align-items:center;gap:8px;
+}
+.pt-title .dot{
+  width:6px;height:6px;border-radius:50%;
+  background:var(--cyan);
+  box-shadow:0 0 8px var(--cyan);
+}
+.pt-badge{
+  font-size:9px;color:var(--ink-3);
+  border:1px solid var(--line-2);border-radius:6px;
+  padding:3px 8px;font-weight:500;
+  transition:.15s;
+}
+.pt-badge.on{
+  color:var(--green);border-color:rgba(94,234,212,0.3);
+  background:rgba(94,234,212,0.06);
+}
+.pt-controls{
+  display:grid;grid-template-columns:1.3fr 1fr;gap:9px;align-items:center;
+}
+.pt-select{
+  width:100%;padding:8px 11px;border-radius:9px;
+  border:1px solid var(--line-2);background:var(--bg-2);
+  color:var(--ink);font-family:inherit;font-size:11px;
+  outline:none;cursor:pointer;
+  transition:.15s;
+  background-image:url("data:image/svg+xml;charset=utf-8,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 12 12' fill='none' stroke='%236a7791' stroke-width='1.5' stroke-linecap='round'%3E%3Cpath d='M3 4.5L6 7.5L9 4.5'/%3E%3C/svg%3E");
+  background-repeat:no-repeat;
+  background-position:left 10px center;
+  background-size:12px;
+  padding-left:28px;
+  appearance:none;-webkit-appearance:none;
+}
+.pt-select:focus{
+  border-color:rgba(75,232,222,0.5);
+  box-shadow:0 0 0 3px rgba(75,232,222,0.08);
+}
+.pt-auto{
+  display:flex;align-items:center;gap:7px;
+  font-size:10px;color:var(--ink-3);
+  cursor:pointer;white-space:nowrap;
+}
+.pt-auto input{
+  accent-color:var(--cyan);
+  width:16px;height:16px;cursor:pointer;
+}
+.pt-metrics{
+  display:grid;grid-template-columns:repeat(4,1fr);
+  gap:6px;margin-top:9px;
+}
+.pt-metric{
+  background:rgba(255,255,255,0.02);
+  border:1px solid var(--line);
+  border-radius:7px;padding:6px 8px;min-width:0;
+}
+.pt-metric small{
+  display:block;color:var(--ink-4);
+  font-size:8px;margin-bottom:3px;
+  white-space:nowrap;overflow:hidden;text-overflow:ellipsis;
+}
+.pt-metric b{
+  display:block;color:var(--ink);
+  font:500 10px 'JetBrains Mono',monospace;
+  white-space:nowrap;overflow:hidden;text-overflow:ellipsis;
+}
+.pt-note{
+  margin-top:8px;font-size:8.5px;
+  line-height:1.7;color:var(--ink-4);
+}
+
+/* ============================================================
+   SHARED SIDE PANELS
+   ============================================================ */
+#vibLab, #milLab{
+  position:fixed;left:20px;top:100px;
+  width:400px;
+  max-height:calc(100vh - 130px);
+  overflow-y:auto;z-index:60;
+  background:rgba(8,13,23,0.94);
+  border:1px solid var(--line-2);
+  border-radius:var(--radius-lg);
+  backdrop-filter:blur(24px) saturate(150%);
+  -webkit-backdrop-filter:blur(24px) saturate(150%);
+  box-shadow:0 30px 80px rgba(0,0,0,0.65), inset 0 1px 0 rgba(255,255,255,0.04);
+  display:none;direction:rtl;
+  scrollbar-width:thin;scrollbar-color:var(--line-3) transparent;
+}
+#vibLab::-webkit-scrollbar,#milLab::-webkit-scrollbar{width:5px;}
+#vibLab::-webkit-scrollbar-thumb,#milLab::-webkit-scrollbar-thumb{
+  background:var(--line-3);border-radius:5px;
+}
+#vibLab{ --accent:var(--violet); }
+#milLab{ --accent:var(--orange); }
+
+#vibLab.open, #milLab.open{
+  display:block;
+  animation:panelIn .22s cubic-bezier(.2,.9,.3,1);
+}
+@keyframes panelIn{
+  from{opacity:0;transform:translateX(-14px);}
+  to{opacity:1;transform:translateX(0);}
+}
+
+.vl-head,.ml-head{
+  padding:16px 18px;
+  border-bottom:1px solid var(--line);
+  display:flex;align-items:center;justify-content:space-between;
+  position:sticky;top:0;z-index:3;
+  background:linear-gradient(180deg, rgba(8,13,23,0.98), rgba(8,13,23,0.92));
+  backdrop-filter:blur(20px);
+  -webkit-backdrop-filter:blur(20px);
+}
+.vl-title,.ml-title{
+  font-weight:700;font-size:13.5px;letter-spacing:-0.2px;
+  color:var(--ink);
+  display:flex;align-items:center;gap:9px;
+}
+.vl-title::before,.ml-title::before{
+  content:'';width:3px;height:14px;border-radius:2px;
+  background:var(--accent);
+  box-shadow:0 0 10px var(--accent);
+}
+.vl-sub,.ml-sub{
+  font-size:10px;color:var(--ink-3);
+  margin-top:4px;padding-right:12px;
+}
+.vl-close,.ml-close{
+  border:1px solid var(--line-2)!important;
+  background:rgba(255,255,255,0.02)!important;
+  color:var(--ink-3)!important;
+  padding:6px!important;border-radius:8px!important;
+  display:inline-flex!important;align-items:center;justify-content:center;
+  width:36px!important;height:36px!important;min-width:36px!important;
+  transition:.15s;
+}
+.vl-close:hover,.ml-close:hover{
+  color:var(--ink)!important;
+  border-color:var(--line-3)!important;
+  background:rgba(255,255,255,0.05)!important;
+}
+
+.vl-sec,.ml-sec{
+  padding:14px 16px;
+  border-bottom:1px solid var(--line);
+}
+.vl-sec:last-child,.ml-sec:last-child{border-bottom:0;}
+.vl-sec h4,.ml-sec h4{
+  margin:0 0 11px;font-size:10.5px;
+  color:var(--ink-3);letter-spacing:.6px;
+  display:flex;align-items:center;gap:8px;font-weight:600;
+}
+.vl-sec h4::before,.ml-sec h4::before{
+  content:'';width:5px;height:5px;border-radius:50%;
+  background:var(--accent);opacity:.7;
+}
+
+.vl-badge,.ml-badge{
+  font-size:8.5px;border-radius:5px;
+  padding:3px 7px;border:1px solid var(--line-2);
+  color:var(--ink-3);font-weight:500;
+  letter-spacing:.2px;
+}
+.vl-badge.on,.ml-badge.on{
+  color:var(--green);
+  border-color:rgba(94,234,212,0.3);
+  background:rgba(94,234,212,0.07);
+}
+.vl-badge.off,.ml-badge.off{
+  color:var(--red);
+  border-color:rgba(255,93,108,0.3);
+  background:rgba(255,93,108,0.07);
+}
+.ml-badge.warn{
+  color:var(--amber);
+  border-color:rgba(245,166,35,0.3);
+  background:rgba(245,166,35,0.07);
+  animation:badgeBlink 1.2s ease-in-out infinite;
+}
+@keyframes badgeBlink{50%{opacity:.55;}}
+
+.vl-grid,.ml-grid{
+  display:grid;grid-template-columns:1fr 1fr;gap:7px;
+}
+.vl-metric,.ml-metric{
+  background:rgba(255,255,255,0.02);
+  border:1px solid var(--line);
+  border-radius:8px;padding:8px 10px;
+  min-width:0;
+}
+.vl-metric small,.ml-metric small{
+  display:block;color:var(--ink-4);
+  font-size:8.5px;margin-bottom:4px;
+  letter-spacing:.2px;
+  white-space:nowrap;overflow:hidden;text-overflow:ellipsis;
+}
+.vl-metric b,.ml-metric b{
+  font-size:12px;color:var(--ink);
+  font-family:'JetBrains Mono',monospace;
+  font-weight:600;letter-spacing:-0.2px;
+  white-space:nowrap;overflow:hidden;text-overflow:ellipsis;
+  display:block;
+}
+.ml-metric.hot b{color:var(--red);text-shadow:0 0 10px rgba(255,93,108,0.5);}
+.ml-metric.ok b{color:var(--green);}
+
+.vl-control,.ml-control{margin:10px 0;}
+.vl-control:last-child,.ml-control:last-child{margin-bottom:0;}
+.vl-control label,.ml-control label{
+  display:flex;justify-content:space-between;align-items:center;
+  font-size:10px;color:var(--ink-3);
+  margin-bottom:6px;gap:8px;
+}
+.vl-control label b,.ml-control label b{
+  color:var(--accent);
+  font-family:'JetBrains Mono',monospace;
+  font-weight:600;font-size:10.5px;
+}
+.vl-control input[type=range]::-webkit-slider-thumb,
+.ml-control input[type=range]::-webkit-slider-thumb{
+  background:var(--accent);
+  box-shadow:0 0 0 3px color-mix(in srgb, var(--accent) 15%, transparent),
+             0 0 12px color-mix(in srgb, var(--accent) 45%, transparent);
+}
+.vl-control input[type=range]::-moz-range-thumb,
+.ml-control input[type=range]::-moz-range-thumb{
+  background:var(--accent);
+}
+
+.vl-layer{
+  display:flex;align-items:center;justify-content:space-between;
+  padding:10px 12px;border-radius:9px;
+  background:rgba(255,255,255,0.02);
+  border:1px solid var(--line);
+  margin-bottom:7px;transition:.15s;
+}
+.vl-layer:last-child{margin-bottom:0;}
+.vl-layer.on{
+  border-color:color-mix(in srgb, var(--accent) 35%, var(--line));
+  background:color-mix(in srgb, var(--accent) 5%, transparent);
+}
+.vl-layer .info{display:flex;flex-direction:column;gap:3px;}
+.vl-layer .info b{font-size:11.5px;color:var(--ink);font-weight:600;}
+.vl-layer .info small{font-size:9px;color:var(--ink-3);}
+
+.vl-switch{
+  position:relative;width:42px;height:24px;border-radius:24px;
+  background:var(--line-2);cursor:pointer;
+  border:1px solid var(--line-3);
+  transition:.2s ease;flex-shrink:0;
+}
+.vl-switch::after{
+  content:'';position:absolute;top:2px;right:2px;
+  width:18px;height:18px;border-radius:50%;
+  background:var(--ink-4);transition:.2s cubic-bezier(.2,.9,.3,1);
+}
+.vl-switch.on{
+  background:color-mix(in srgb, var(--accent) 30%, transparent);
+  border-color:var(--accent);
+}
+.vl-switch.on::after{
+  right:20px;background:var(--accent);
+  box-shadow:0 0 10px var(--accent);
+}
+
+.vl-events,.ml-events{
+  display:grid;grid-template-columns:1fr 1fr;gap:7px;
+}
+.vl-ev,.ml-ev{
+  padding:11px 8px;border-radius:9px;
+  border:1px solid var(--line-2);
+  background:rgba(255,255,255,0.02);
+  color:var(--ink-2);
+  font-size:10.5px;cursor:pointer;
+  transition:.15s;
+  text-align:center;
+  font-family:inherit;font-weight:500;
+  position:relative;overflow:hidden;
+  display:flex;align-items:center;justify-content:center;gap:6px;
+  min-height:38px;
+}
+.vl-ev::before,.ml-ev::before{
+  content:'';width:5px;height:5px;border-radius:50%;
+  background:var(--accent);opacity:.5;
+  flex-shrink:0;transition:.15s;
+}
+.vl-ev:hover,.ml-ev:hover{
+  border-color:var(--line-3);
+  color:var(--ink);
+  background:rgba(255,255,255,0.04);
+}
+.vl-ev:hover::before,.ml-ev:hover::before{opacity:1;}
+.vl-ev.active,.ml-ev.active{
+  border-color:color-mix(in srgb, var(--accent) 55%, transparent);
+  color:var(--ink);
+  background:color-mix(in srgb, var(--accent) 12%, transparent);
+  box-shadow:0 0 0 1px color-mix(in srgb, var(--accent) 20%, transparent),
+             0 0 22px color-mix(in srgb, var(--accent) 22%, transparent);
+}
+.vl-ev.active::before,.ml-ev.active::before{
+  opacity:1;box-shadow:0 0 8px var(--accent);
+  animation:dotPulse 1.4s ease-in-out infinite;
+}
+@keyframes dotPulse{
+  0%,100%{opacity:1;}
+  50%{opacity:.4;}
+}
+.ml-ev .threat{
+  position:absolute;top:5px;right:6px;
+  font-size:7.5px;color:var(--ink-4);
+  letter-spacing:.3px;font-weight:600;
+}
+.ml-ev.active .threat{color:var(--red);}
+
+.vl-log,.ml-log{
+  font-size:9.5px;direction:rtl;
+  background:rgba(0,0,0,0.25);
+  border:1px solid var(--line);
+  padding:10px 12px;border-radius:9px;
+  color:var(--ink-3);
+  max-height:110px;overflow-y:auto;
+  line-height:1.85;
+  font-family:'JetBrains Mono',monospace;
+  scrollbar-width:thin;
+}
+.vl-log::-webkit-scrollbar,.ml-log::-webkit-scrollbar{width:4px;}
+.vl-log::-webkit-scrollbar-thumb,.ml-log::-webkit-scrollbar-thumb{
+  background:var(--line-3);border-radius:4px;
+}
+.vl-log .row-ev,.ml-log .row-ev{color:var(--accent);}
+.vl-log .row-ok,.ml-log .row-ok{color:var(--green);}
+.vl-log .row-al,.ml-log .row-al{color:var(--red);}
+.ml-log .row-info{color:var(--cyan);}
+
+.vl-note,.ml-note{
+  font-size:10px;line-height:1.85;
+  color:var(--ink-4);margin:10px 0 0;
+}
+
+.vl-wave,.ml-spectrum{
+  width:100%;height:74px;display:block;
+  background:rgba(0,0,0,0.3);
+  border:1px solid var(--line);
+  border-radius:9px;
+}
+
+.ml-status{
+  display:flex;gap:8px;align-items:center;
+  font-size:10.5px;color:var(--ink-3);
+  padding:8px 12px;margin-bottom:11px;
+  background:rgba(255,255,255,0.02);
+  border:1px solid var(--line);
+  border-radius:9px;
+}
+.ml-status .dot{
+  width:7px;height:7px;border-radius:50%;
+  background:var(--green);
+  box-shadow:0 0 10px currentColor;
+  color:var(--green);
+  flex-shrink:0;
+}
+.ml-status.warn .dot{background:var(--amber);color:var(--amber);}
+.ml-status.crit .dot{background:var(--red);color:var(--red);animation:dotPulse .8s infinite;}
+
+.ml-tabs{
+  display:flex;gap:5px;padding:10px 14px;
+  border-bottom:1px solid var(--line);
+  background:rgba(0,0,0,0.15);
+  overflow-x:auto;
+  scrollbar-width:none;
+  position:sticky;top:0;z-index:2;
+  backdrop-filter:blur(20px);
+  -webkit-backdrop-filter:blur(20px);
+}
+.ml-tabs::-webkit-scrollbar{display:none;}
+.ml-tab{
+  flex:1 0 auto;
+  padding:9px 10px;text-align:center;
+  font-size:10.5px;border-radius:8px;
+  border:1px solid transparent;
+  background:transparent;color:var(--ink-3);
+  cursor:pointer;transition:.15s;
+  font-family:inherit;font-weight:500;
+  white-space:nowrap;
+}
+.ml-tab:hover{color:var(--ink-2);background:rgba(255,255,255,0.03);}
+.ml-tab.active{
+  background:color-mix(in srgb, var(--accent) 10%, transparent);
+  border-color:color-mix(in srgb, var(--accent) 35%, transparent);
+  color:var(--accent);
+}
+.ml-tabpane{display:none;}
+.ml-tabpane.active{display:block;animation:tabIn .18s ease-out;}
+@keyframes tabIn{from{opacity:0;}to{opacity:1;}}
+
+.ml-jtype{
+  flex:1;padding:8px 4px;font-size:10px;
+  border-radius:7px;border:1px solid var(--line-2);
+  background:rgba(255,255,255,0.02);color:var(--ink-3);
+  cursor:pointer;font-family:inherit;transition:.15s;
+}
+.ml-jtype:hover{color:var(--ink-2);}
+.ml-jtype.active{
+  border-color:color-mix(in srgb, var(--accent) 50%, transparent);
+  color:var(--accent);
+  background:color-mix(in srgb, var(--accent) 10%, transparent);
+}
+
+#mlSummary{
+  font-size:11px!important;
+  color:var(--ink-2)!important;
+  line-height:2!important;
+  padding:12px 14px!important;
+  background:rgba(255,255,255,0.02)!important;
+  border:1px solid var(--line)!important;
+  border-radius:9px!important;
+}
+#mlSummary b{font-family:'JetBrains Mono',monospace;}
+
+/* ============================================================
+   HELP MODAL
+   ============================================================ */
+#helpOverlay{
+  position:fixed;inset:0;
+  background:rgba(3,6,12,0.82);
+  backdrop-filter:blur(10px);
+  -webkit-backdrop-filter:blur(10px);
+  z-index:100;display:none;
+  align-items:center;justify-content:center;
+  padding:20px;
+  padding-top:calc(20px + var(--safe-top));
+  padding-bottom:calc(20px + var(--safe-bottom));
+}
+#helpOverlay.open{display:flex;animation:fadeIn .2s ease-out;}
+@keyframes fadeIn{from{opacity:0;}to{opacity:1;}}
+
+#helpModal{
+  background:linear-gradient(180deg, #0c1424 0%, #080e1a 100%);
+  border:1px solid var(--line-2);
+  border-radius:18px;
+  max-width:740px;width:100%;max-height:85vh;
+  overflow:auto;direction:rtl;
+  box-shadow:0 40px 120px rgba(0,0,0,0.7), inset 0 1px 0 rgba(255,255,255,0.04);
+  animation:modalIn .24s cubic-bezier(.2,.9,.3,1);
+  scrollbar-width:thin;scrollbar-color:var(--line-3) transparent;
+}
+#helpModal::-webkit-scrollbar{width:6px;}
+#helpModal::-webkit-scrollbar-thumb{background:var(--line-3);border-radius:6px;}
+@keyframes modalIn{
+  from{opacity:0;transform:translateY(16px) scale(.985);}
+  to{opacity:1;transform:none;}
+}
+
+.hm-head{
+  padding:20px 26px;
+  border-bottom:1px solid var(--line);
+  display:flex;align-items:center;justify-content:space-between;
+  position:sticky;top:0;
+  background:rgba(12,20,36,0.96);
+  backdrop-filter:blur(20px);
+  -webkit-backdrop-filter:blur(20px);
+  z-index:2;
+}
+.hm-head h2{
+  margin:0;font-size:15px;color:var(--ink);
+  display:flex;align-items:center;gap:11px;font-weight:700;
+  letter-spacing:-0.2px;
+}
+.hm-head h2 svg{width:20px;height:20px;color:var(--cyan);}
+.hm-close{
+  border:1px solid var(--line-2)!important;
+  background:rgba(255,255,255,0.02)!important;
+  color:var(--ink-3)!important;
+  padding:6px!important;border-radius:8px!important;
+  width:36px!important;height:36px!important;
+  display:inline-flex!important;align-items:center;justify-content:center;
+  transition:.15s;
+}
+.hm-close:hover{
+  color:var(--ink)!important;
+  border-color:var(--line-3)!important;
+  background:rgba(255,255,255,0.05)!important;
+}
+
+.hm-body{padding:24px 26px 30px;}
+.hm-section{margin-bottom:24px;}
+.hm-section:last-child{margin-bottom:0;}
+.hm-section h3{
+  font-size:12.5px;color:var(--ink);
+  margin:0 0 12px;padding-bottom:9px;
+  border-bottom:1px solid var(--line);
+  display:flex;align-items:center;gap:9px;font-weight:600;
+}
+.hm-section h3 svg{width:15px;height:15px;color:var(--cyan);flex-shrink:0;}
+.hm-section p{
+  font-size:12px;color:var(--ink-2);
+  line-height:2;margin:0 0 10px;
+}
+.hm-section ul{margin:0;padding-right:18px;}
+.hm-section li{
+  font-size:12px;color:var(--ink-2);
+  line-height:2;margin-bottom:6px;
+}
+.hm-section li b{color:var(--cyan);font-weight:600;}
+.hm-badge{
+  display:inline-flex;align-items:center;gap:4px;
+  padding:3px 10px;border-radius:6px;
+  font-size:10.5px;font-weight:600;
+}
+.hm-badge.cyan{
+  background:var(--cyan-dim);
+  color:var(--cyan);
+  border:1px solid rgba(75,232,222,0.25);
+}
+.hm-grid{
+  display:grid;grid-template-columns:1fr 1fr;
+  gap:10px;margin-top:10px;
+}
+.hm-card{
+  background:rgba(255,255,255,0.02);
+  border:1px solid var(--line);
+  border-radius:11px;padding:14px;
+}
+.hm-card h5{
+  margin:0 0 7px;font-size:11.5px;
+  color:var(--ink);font-weight:600;
+  display:flex;align-items:center;gap:8px;
+}
+.hm-card h5 svg{width:14px;height:14px;color:var(--cyan);flex-shrink:0;}
+.hm-card p{
+  font-size:10.5px;color:var(--ink-3);
+  line-height:1.9;margin:0;
+}
+.hm-note{
+  background:rgba(75,232,222,0.05);
+  border-right:2px solid var(--cyan);
+  padding:12px 14px;border-radius:8px;margin-top:12px;
+}
+.hm-note p{font-size:11px;color:var(--ink-2);line-height:1.95;margin:0;}
+
+/* ============================================================
+   MOBILE-ONLY ELEMENTS
+   ============================================================ */
+.mobile-only{display:none!important;}
+#drawerBackdrop{
+  display:none;
+  position:fixed;inset:0;
+  background:rgba(3,6,12,0.6);
+  backdrop-filter:blur(4px);
+  -webkit-backdrop-filter:blur(4px);
+  z-index:45;
+}
+#panelCloseBtn{
+  display:none;
+  position:absolute;top:14px;left:14px;
+  width:38px;height:38px;padding:0!important;
+  border-radius:10px!important;
+  align-items:center;justify-content:center;
+  z-index:5;
+}
+
+/* ============================================================
+   RESPONSIVE — TABLETS & SMALL LAPTOPS
+   ============================================================ */
+@media (max-width:1200px){
+  #vibLab,#milLab{width:360px;left:14px;}
+}
+@media (max-width:1100px){
+  #platformTab{width:360px;top:12px;}
+}
+@media (max-width:900px){
+  #title-block p{display:none;}
+  #title-block h1{font-size:14.5px;}
+}
+
+/* ============================================================
+   RESPONSIVE — MOBILE (touch)
+   ============================================================ */
+@media (max-width:820px) and (pointer:coarse),
+       (max-width:820px) {
+
+  body{
+    font-size:14px;
+    padding:0;
+  }
+
+  .mobile-only{display:flex!important;}
+
+  /* ---------- TOPBAR ---------- */
+  #topbar{
+    padding:10px 14px 8px;
+    padding-top:calc(10px + var(--safe-top));
+    flex-direction:column;
+    align-items:stretch;
+    gap:0;
+    background:linear-gradient(to bottom, rgba(5,8,15,0.95) 0%, rgba(5,8,15,0.6) 60%, transparent 100%);
+  }
+  #title-block .eyebrow{
+    font-size:8px;letter-spacing:2.2px;margin-bottom:2px;
+  }
+  #title-block h1{
+    font-size:13px;line-height:1.35;
+  }
+  #title-block p{display:none;}
+
+  /* ---------- TOP BUTTONS => BOTTOM TOOLBAR ---------- */
+  #topbtns{
+    position:fixed;
+    bottom:calc(8px + var(--safe-bottom));
+    left:calc(8px + var(--safe-left));
+    right:calc(8px + var(--safe-right));
+    max-width:none;
+    width:auto;
+    justify-content:space-between;
+    align-items:stretch;
+    gap:4px;
+    padding:6px;
+    background:rgba(8,13,23,0.94);
+    border:1px solid var(--line-2);
+    border-radius:16px;
+    backdrop-filter:blur(24px) saturate(150%);
+    -webkit-backdrop-filter:blur(24px) saturate(150%);
+    box-shadow:0 12px 40px rgba(0,0,0,0.6), inset 0 1px 0 rgba(255,255,255,0.04);
+    z-index:35;
+    flex-wrap:nowrap;
+    overflow:hidden;
+  }
+  #topbtns .btn{
+    flex:1 1 0;
+    flex-direction:column;
+    gap:3px;
+    padding:8px 4px;
+    min-width:0;
+    font-size:8.5px;
+    font-weight:500;
+    justify-content:center;
+    align-items:center;
+    border-radius:11px;
+    border-color:transparent;
+    background:transparent;
+    color:var(--ink-2);
+    line-height:1.1;
+    text-align:center;
+    transition:background .15s, color .15s;
+    white-space:nowrap;
+    overflow:hidden;
+  }
+  #topbtns .btn svg{
+    width:18px;
+    height:18px;
+    flex-shrink:0;
+  }
+  #topbtns .btn.active,
+  #topbtns .btn.on{
+    background:var(--cyan-dim);
+    border-color:rgba(75,232,222,0.35);
+    color:var(--cyan);
+    box-shadow:none;
+  }
+  #topbtns .btn.off,
+  #topbtns .btn.danger{
+    background:rgba(255,93,108,0.08);
+    color:var(--red);
+    border-color:rgba(255,93,108,0.25);
+  }
+  #topbtns .btn:hover{
+    background:rgba(255,255,255,0.05);
+  }
+
+  /* ---------- PLATFORM TAB ---------- */
+  #platformTab{
+    position:fixed;
+    top:calc(58px + var(--safe-top));
+    left:calc(10px + var(--safe-left));
+    right:calc(10px + var(--safe-right));
+    width:auto;
+    transform:none;
+    padding:8px 10px;
+    border-radius:12px;
+    z-index:22;
+  }
+  .pt-head{margin-bottom:7px;}
+  .pt-title{font-size:10px;gap:6px;}
+  .pt-title .dot{width:5px;height:5px;}
+  .pt-badge{font-size:7.5px;padding:2px 6px;border-radius:5px;}
+  .pt-controls{grid-template-columns:1fr;gap:6px;}
+  .pt-select{
+    padding:9px 28px 9px 10px;
+    font-size:11.5px;
+    background-position:left 8px center;
+  }
+  .pt-auto{font-size:10px;gap:6px;}
+  .pt-auto input{width:16px;height:16px;}
+  .pt-metrics{
+    grid-template-columns:repeat(2,1fr);
+    gap:5px;margin-top:7px;
+  }
+  .pt-metric{padding:5px 7px;}
+  .pt-metric small{font-size:7.5px;}
+  .pt-metric b{font-size:9.5px;}
+  .pt-note{display:none;}
+
+  /* ---------- QUANTUM HUD ---------- */
+  #quantumHud{display:none;}
+
+  /* ---------- LEFT PANEL => RIGHT DRAWER ---------- */
+  #panel-left{
+    position:fixed;
+    top:0;bottom:0;right:0;
+    left:auto;
+    width:min(88vw, 360px);
+    max-height:100vh;
+    padding:64px 14px calc(90px + var(--safe-bottom));
+    padding-top:calc(64px + var(--safe-top));
+    background:rgba(5,8,15,0.97);
+    backdrop-filter:blur(28px) saturate(150%);
+    -webkit-backdrop-filter:blur(28px) saturate(150%);
+    border-left:1px solid var(--line-2);
+    border-right:none;
+    border-radius:0;
+    transform:translateX(105%);
+    transition:transform 0.3s cubic-bezier(.2,.9,.3,1);
+    z-index:50;
+    gap:8px;
+    box-shadow:-20px 0 60px rgba(0,0,0,0.5);
+  }
+  body.drawer-open #panel-left{
+    transform:translateX(0);
+  }
+  #panelCloseBtn{display:inline-flex!important;}
+  #drawerBackdrop{display:block;opacity:0;pointer-events:none;transition:opacity 0.3s;}
+  body.drawer-open #drawerBackdrop{opacity:1;pointer-events:auto;}
+
+  /* ---------- PANELS INSIDE DRAWER ---------- */
+  #panel-left .panel{
+    border-radius:12px;
+    padding:12px;
+  }
+  #panel-left .panel-title{font-size:10px;margin-bottom:10px;}
+  .row-label{font-size:10.5px;}
+  .row-label b{font-size:11px;}
+  .seg .btn{font-size:10.5px;padding:9px 6px;}
+
+  /* ---------- BOTTOM STATS ---------- */
+  #panel-bottom{
+    position:fixed;
+    bottom:calc(78px + var(--safe-bottom));
+    left:calc(8px + var(--safe-left));
+    right:calc(8px + var(--safe-right));
+    top:auto;
+    flex-direction:row;
+    flex-wrap:wrap;
+    gap:5px;
+    z-index:14;
+  }
+  #panel-bottom .panel{
+    border-radius:10px;
+    padding:0;
+    background:rgba(8,13,23,0.9);
+  }
+  #panel-bottom .stat{
+    flex:1 1 calc(33.333% - 4px);
+    min-width:0;
+    padding:7px 8px;
+    gap:2px;
+  }
+  #panel-bottom .stat .k{
+    font-size:7.5px;
+    margin-bottom:3px;
+    letter-spacing:0;
+    line-height:1.2;
+    white-space:nowrap;
+    overflow:hidden;
+    text-overflow:ellipsis;
+  }
+  #panel-bottom .stat .v{
+    font-size:15px;
+    letter-spacing:-0.5px;
+  }
+  #chart-wrap{
+    flex:1 1 100%;
+    min-width:0;
+    height:34px;
+    padding:4px 8px;
+    margin-top:2px;
+  }
+
+  /* ---------- HINT ---------- */
+  #hint{display:none;}
+
+  /* ---------- VIB / MIL PANELS FULLSCREEN ---------- */
+  #vibLab,#milLab{
+    top:0;bottom:0;left:0;right:0;
+    width:auto;
+    max-height:none;
+    border-radius:0;
+    border:none;
+    padding:0;
+    padding-top:var(--safe-top);
+    padding-bottom:var(--safe-bottom);
+    background:rgba(5,8,15,0.99);
+    backdrop-filter:blur(28px);
+    -webkit-backdrop-filter:blur(28px);
+    z-index:60;
+  }
+  #vibLab.open,#milLab.open{
+    animation:panelSlideUp .28s cubic-bezier(.2,.9,.3,1);
+  }
+  @keyframes panelSlideUp{
+    from{opacity:0;transform:translateY(20px);}
+    to{opacity:1;transform:translateY(0);}
+  }
+  .vl-head,.ml-head{
+    padding:14px 16px;
+    padding-top:calc(14px + var(--safe-top));
+    position:sticky;top:0;
+  }
+  .vl-title,.ml-title{font-size:12.5px;}
+  .vl-sub,.ml-sub{font-size:9.5px;}
+  .vl-sec,.ml-sec{padding:14px 16px;}
+  .vl-sec h4,.ml-sec h4{font-size:10px;}
+  .vl-ev,.ml-ev{
+    font-size:11px;
+    min-height:44px;
+    padding:11px 8px;
+  }
+  .vl-metric b,.ml-metric b{font-size:12.5px;}
+  .vl-wave,.ml-spectrum{height:80px;}
+  .vl-log,.ml-log{max-height:140px;font-size:10px;}
+
+  /* larger tab strip for touch */
+  .ml-tabs{padding:8px 10px;gap:5px;}
+  .ml-tab{padding:10px 12px;font-size:11px;}
+
+  /* ---------- HELP MODAL FULLSCREEN ---------- */
+  #helpOverlay{
+    padding:0;
+    align-items:stretch;
+  }
+  #helpModal{
+    border-radius:0;
+    max-height:100vh;
+    max-width:100%;
+    height:100vh;
+    border:none;
+    animation:modalSlideUp .25s cubic-bezier(.2,.9,.3,1);
+  }
+  @keyframes modalSlideUp{
+    from{transform:translateY(30px);opacity:0;}
+    to{transform:translateY(0);opacity:1;}
+  }
+  .hm-head{
+    padding:14px 16px;
+    padding-top:calc(14px + var(--safe-top));
+  }
+  .hm-head h2{font-size:14px;gap:9px;}
+  .hm-head h2 svg{width:18px;height:18px;}
+  .hm-body{padding:18px 18px 26px;padding-bottom:calc(26px + var(--safe-bottom));}
+  .hm-section h3{font-size:12px;}
+  .hm-section p,.hm-section li{font-size:12px;line-height:2;}
+  .hm-grid{grid-template-columns:1fr;gap:8px;}
+  .hm-card{padding:12px;}
+  .hm-card h5{font-size:11.5px;}
+  .hm-card p{font-size:11px;}
+
+  /* Larger tap targets on mobile */
+  .btn{
+    min-height:36px;
+  }
+  .vl-switch{
+    width:46px;
+    height:26px;
+  }
+  .vl-switch::after{
+    width:20px;height:20px;
+  }
+  .vl-switch.on::after{right:22px;}
+}
+
+/* ============================================================
+   VERY NARROW PHONES
+   ============================================================ */
+@media (max-width:360px){
+  #title-block h1{font-size:12px;}
+  #topbtns .btn{font-size:7.5px;padding:7px 2px;}
+  #topbtns .btn svg{width:16px;height:16px;}
+  #panel-bottom .stat .v{font-size:13px;}
+  #panel-bottom .stat .k{font-size:7px;}
+  .pt-metrics{grid-template-columns:1fr 1fr;}
+}
+
+/* ============================================================
+   LANDSCAPE MOBILE
+   ============================================================ */
+@media (max-width:900px) and (orientation:landscape){
+  #topbar{padding-top:calc(6px + var(--safe-top));padding-bottom:4px;}
+  #title-block .eyebrow{display:none;}
+  #title-block h1{font-size:12px;}
+  #platformTab{top:calc(40px + var(--safe-top));}
+  .pt-metrics{display:none;}
+  #panel-left{
+    width:min(70vw, 340px);
+    padding-top:calc(54px + var(--safe-top));
+  }
+  #panel-bottom{
+    bottom:calc(72px + var(--safe-bottom));
+  }
+  #panel-bottom .stat{padding:6px 6px;}
+  #panel-bottom .stat .v{font-size:13px;}
+  #chart-wrap{height:28px;}
+}
+</style>
+</head>
+<body>
+
+<div id="scene-container"></div>
+<div id="drawerBackdrop"></div>
+
+<div class="hud" id="topbar">
+  <div id="title-block">
+    <div class="eyebrow">آزمایشگاه ناوبری پیشرفته</div>
+    <h1>سیستم شبیه ساز ناوبری کوانتومی</h1>
+    <p>حرکت جسم انتخابی را با سه روش ناوبری مقایسه کنید: ناوبری درونی، ماهواره‌ای و کوانتومی. با کشیدن ماوس دوربین را بچرخانید.</p>
+  </div>
+  <div id="topbtns">
+    <button class="btn active" id="playBtn"></button>
+    <button class="btn" id="resetBtn"></button>
+  </div>
+</div>
+
+<!-- ============ MOVING PLATFORM TAB ============ -->
+<div class="hud" id="platformTab">
+  <div class="pt-head">
+    <div class="pt-title"><span class="dot"></span> انتخاب جسم متحرک</div>
+    <span class="pt-badge on" id="platformAutoBadge">تنظیم خودکار: فعال</span>
+  </div>
+  <div class="pt-controls">
+    <select class="pt-select" id="platformSelect" aria-label="انتخاب جسم متحرک">
+      <option value="drone">پهپاد چهارملخه</option>
+      <option value="helicopter">هلیکوپتر</option>
+      <option value="airplane">هواپیما</option>
+      <option value="car">خودرو</option>
+      <option value="tank">تانک</option>
+      <option value="boat">قایق</option>
+      <option value="frigate">ناوچه</option>
+      <option value="ship">ناو</option>
+    </select>
+    <label class="pt-auto"><input id="platformAuto" type="checkbox" checked> تنظیم خودکار پارامترها</label>
+  </div>
+  <div class="pt-metrics">
+    <div class="pt-metric"><small>جرم مرجع</small><b id="ptMass">—</b></div>
+    <div class="pt-metric"><small>سرعت مرجع</small><b id="ptSpeed">—</b></div>
+    <div class="pt-metric"><small>فرکانس غالب لرزش</small><b id="ptVib">—</b></div>
+    <div class="pt-metric"><small>نرخ GNSS مرجع</small><b id="ptGnss">—</b></div>
+  </div>
+  <div class="pt-note">مقادیر بالا «سناریوی مرجع» برای مدل‌سازی هستند؛ جایگزین مشخصات یک وسیلهٔ واقعی یا سامانهٔ ناوبری تجاری نیستند.</div>
+</div>
+
+<div class="hud" id="quantumHud">
+  <canvas id="qCanvas" width="150" height="150"></canvas>
+  <div class="lbl">حسگر کوانتومی</div>
+</div>
+
+<div class="hud" id="panel-left">
+  <button class="btn" id="panelCloseBtn" aria-label="بستن">
+    <svg viewBox="0 0 16 16" width="15" height="15" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round"><path d="M4 4l8 8M12 4l-8 8"/></svg>
+  </button>
+
+  <div class="panel">
+    <div class="panel-title">مسیر پرواز</div>
+    <div class="seg">
+      <button class="btn active" data-path="circle">دایره</button>
+      <button class="btn" data-path="zigzag">زیگزاگ</button>
+      <button class="btn" data-path="custom">دلخواه</button>
+      <button class="btn" data-path="weave">تاکتیکی</button>
+    </div>
+  </div>
+
+  <div class="panel">
+    <div class="panel-title">سرعت و محیط</div>
+    <div class="row">
+      <div class="row-label"><span>سرعت پرنده (متر بر ثانیه)</span><b id="v-speed">1.10</b></div>
+      <input type="range" id="speed" min="0.3" max="2.5" step="0.05" value="1.1">
+    </div>
+    <div class="row">
+      <div class="row-label"><span>نویز حسگر درونی</span><b id="v-imu">45%</b></div>
+      <input type="range" id="imuNoise" min="0" max="1" step="0.02" value="0.45">
+    </div>
+    <div class="row">
+      <div class="row-label"><span>انحراف تدریجی حسگر</span><b id="v-bias">35%</b></div>
+      <input type="range" id="biasDrift" min="0" max="1" step="0.02" value="0.35">
+    </div>
+  </div>
+
+  <div class="panel">
+    <div class="panel-title">حسگر کوانتومی</div>
+    <div class="row">
+      <div class="row-label"><span>دقت اندازه‌گیری</span><b id="v-qprec">85%</b></div>
+      <input type="range" id="qPrecision" min="0.1" max="1" step="0.02" value="0.85">
+    </div>
+    <div class="row">
+      <div class="row-label"><span>سرعت به‌روزرسانی</span><b id="v-qrate">35%</b></div>
+      <input type="range" id="qRate" min="0.05" max="1" step="0.02" value="0.35">
+    </div>
+  </div>
+
+  <div class="panel">
+    <div class="panel-title">سیگنال ماهواره‌ای</div>
+    <button class="btn on" id="gpsToggle" style="width:100%;justify-content:center;margin-bottom:12px;">متصل</button>
+    <div class="row" id="gpsNoiseRow">
+      <div class="row-label"><span>نویز سیگنال</span><b id="v-gps">20%</b></div>
+      <input type="range" id="gpsNoise" min="0" max="1" step="0.02" value="0.2">
+    </div>
+  </div>
+</div>
+
+<div id="hint">کلیک روی زمین در حالت «دلخواه» مسیر می‌سازد</div>
+
+<div class="hud" id="panel-bottom">
+  <div class="panel stat"><div class="k">خطای ناوبری درونی (متر)</div><div class="v" id="stat-imu" style="color:var(--red)">0.0</div></div>
+  <div class="panel stat"><div class="k">خطای ماهواره‌ای (متر)</div><div class="v" id="stat-gps" style="color:var(--amber)">0.0</div></div>
+  <div class="panel stat"><div class="k">خطای ترکیبی (متر)</div><div class="v" id="stat-fused" style="color:var(--cyan)">0.0</div></div>
+  <div class="panel" id="chart-wrap"><canvas id="errChart"></canvas></div>
+</div>
+
+<!-- ============ VIBRATION DAMPER PANEL ============ -->
+<div id="vibLab">
+  <div class="vl-head">
+    <div>
+      <div class="vl-title">سیستم لرزشگیر دو-لایه</div>
+      <div class="vl-sub">جداسازی ارتعاش به روش غیرفعال و فعال</div>
+    </div>
+    <button class="btn vl-close" id="vibClose" aria-label="بستن">
+      <svg viewBox="0 0 16 16" width="14" height="14" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round"><path d="M4 4l8 8M12 4l-8 8"/></svg>
+    </button>
+  </div>
+
+  <div class="vl-sec">
+    <h4>لایه‌های جداسازی <span class="vl-badge" id="vlMode">غیرفعال + فعال</span></h4>
+    <div class="vl-layer on" id="layer1Box">
+      <div class="info">
+        <b>لایه اول — جداسازی غیرفعال</b>
+        <small>جذب ارتعاش با فنر و میراکننده</small>
+      </div>
+      <div class="vl-switch on" id="layer1Sw"></div>
+    </div>
+    <div class="vl-layer on" id="layer2Box">
+      <div class="info">
+        <b>لایه دوم — کنترل فعال</b>
+        <small>خنثی‌سازی ارتعاش با بازخورد لحظه‌ای</small>
+      </div>
+      <div class="vl-switch on" id="layer2Sw"></div>
+    </div>
+  </div>
+
+  <div class="vl-sec">
+    <h4>ارتعاش ورودی</h4>
+    <div class="vl-control">
+      <label><span>شدت ارتعاش</span><b id="vvAmp">0.20</b></label>
+      <input id="vAmp" type="range" min="0" max="5" step="0.01" value="0.2">
+    </div>
+    <div class="vl-control">
+      <label><span>فرکانس ارتعاش (هرتز)</span><b id="vvFreq">12.0</b></label>
+      <input id="vFreq" type="range" min="0.5" max="200" step="0.5" value="12">
+    </div>
+    <div class="vl-control">
+      <label><span>پهنای محدوده (هرتز)</span><b id="vvBwIn">8.0</b></label>
+      <input id="vBwIn" type="range" min="0.5" max="60" step="0.5" value="8">
+    </div>
+    <div class="vl-control">
+      <label><span>جهت ارتعاش</span><b id="vvDir">0 درجه</b></label>
+      <input id="vDir" type="range" min="0" max="360" step="1" value="0">
+    </div>
+    <div class="vl-control">
+      <label><span>نویز تصادفی محیط</span><b id="vvRand">15%</b></label>
+      <input id="vRand" type="range" min="0" max="100" step="1" value="15">
+    </div>
+  </div>
+
+  <div class="vl-sec" id="layer1Params">
+    <h4>تنظیمات لایه اول</h4>
+    <div class="vl-control">
+      <label><span>فرکانس طبیعی سامانه (هرتز)</span><b id="vvFn">3.0</b></label>
+      <input id="vFn" type="range" min="0.5" max="40" step="0.1" value="3">
+    </div>
+    <div class="vl-control">
+      <label><span>میزان میرایی</span><b id="vvZeta">0.30</b></label>
+      <input id="vZeta" type="range" min="0.02" max="1.5" step="0.01" value="0.30">
+    </div>
+    <div class="vl-control">
+      <label><span>سختی فنر (کیلونیوتون بر متر)</span><b id="vvK">120</b></label>
+      <input id="vK" type="range" min="5" max="1000" step="5" value="120">
+    </div>
+    <div class="vl-grid" style="margin-top:10px">
+      <div class="vl-metric"><small>عبور در فرکانس طبیعی</small><b id="vmT0">—</b></div>
+      <div class="vl-metric"><small>کاهش در فرکانس طبیعی</small><b id="vmAtt0">—</b></div>
+    </div>
+  </div>
+
+  <div class="vl-sec" id="layer2Params">
+    <h4>تنظیمات لایه دوم</h4>
+    <div class="vl-control">
+      <label><span>قدرت واکنش لحظه‌ای</span><b id="vvKp">0.70</b></label>
+      <input id="vKp" type="range" min="0" max="2" step="0.01" value="0.70">
+    </div>
+    <div class="vl-control">
+      <label><span>قدرت واکنش تجمعی</span><b id="vvKi">0.05</b></label>
+      <input id="vKi" type="range" min="0" max="1" step="0.01" value="0.05">
+    </div>
+    <div class="vl-control">
+      <label><span>تأخیر پاسخ (میلی‌ثانیه)</span><b id="vvDelay">5.0</b></label>
+      <input id="vDelay" type="range" min="0" max="50" step="0.5" value="5">
+    </div>
+    <div class="vl-control">
+      <label><span>محدوده پاسخ‌دهی (هرتز)</span><b id="vvBw">45</b></label>
+      <input id="vBw" type="range" min="5" max="300" step="1" value="45">
+    </div>
+    <div class="vl-control">
+      <label><span>توان مصرفی (کیلووات)</span><b id="vvPower">0.50</b></label>
+      <input id="vPower" type="range" min="0" max="3" step="0.01" value="0.5">
+    </div>
+  </div>
+
+  <div class="vl-sec">
+    <h4>شبیه‌سازی حوادث محیطی</h4>
+    <div class="vl-events">
+      <button class="vl-ev" data-ev="earthquake">زلزله</button>
+      <button class="vl-ev" data-ev="wind">باد شدید</button>
+      <button class="vl-ev" data-ev="turbulence">تلاطم هوا</button>
+      <button class="vl-ev" data-ev="motor">ارتعاش موتور</button>
+      <button class="vl-ev" data-ev="impact">ضربه ناگهانی</button>
+      <button class="vl-ev" data-ev="resonance">هم‌فرکانسی</button>
+      <button class="vl-ev" data-ev="sandstorm">طوفان شن</button>
+      <button class="vl-ev" data-ev="gunfire">شلیک توپ</button>
+    </div>
+    <div class="vl-control" style="margin-top:12px">
+      <label><span>شدت حادثه</span><b id="vvSev">70%</b></label>
+      <input id="vSeverity" type="range" min="10" max="100" step="1" value="70">
+    </div>
+    <div style="display:flex;gap:7px;margin-top:10px">
+      <button class="btn" id="vibRun" style="flex:1;justify-content:center;border-color:color-mix(in srgb, var(--violet) 40%, var(--line-2));color:var(--violet);">حادثه تصادفی</button>
+      <button class="btn danger" id="vibStop" style="justify-content:center">توقف</button>
+    </div>
+  </div>
+
+  <div class="vl-sec">
+    <h4>نمای زنده سیگنال</h4>
+    <canvas class="vl-wave" id="vibWave"></canvas>
+    <div class="vl-grid" style="margin-top:10px">
+      <div class="vl-metric"><small>شدت خروجی</small><b id="vmRms">0.00</b></div>
+      <div class="vl-metric"><small>میزان کاهش (دسی‌بل)</small><b id="vmAtt">0.0</b></div>
+      <div class="vl-metric"><small>خروجی لایه اول</small><b id="vmL1">0.00</b></div>
+      <div class="vl-metric"><small>خروجی لایه دوم</small><b id="vmL2">0.00</b></div>
+      <div class="vl-metric"><small>فرکانس لحظه‌ای</small><b id="vmFreq">12.0 هرتز</b></div>
+      <div class="vl-metric"><small>میزان اثر کنترل</small><b id="vmEff">0.00</b></div>
+      <div class="vl-metric"><small>ضریب عبور</small><b id="vmTf">—</b></div>
+      <div class="vl-metric"><small>فاصله از هم‌فرکانسی</small><b id="vmRes">—</b></div>
+    </div>
+  </div>
+
+  <div class="vl-sec">
+    <h4>گزارش رخدادها</h4>
+    <div class="vl-log" id="vibLog">
+      <div class="row-ok">[سامانه] آماده به کار</div>
+    </div>
+    <p class="vl-note">
+      لایه اول ارتعاشات را با کمک فنر و میراکننده کاهش می‌دهد. لایه دوم با پاسخ لحظه‌ای، ارتعاش باقی‌مانده را خنثی می‌کند. ترکیب این دو لایه باعث پایداری بیشتر پرنده در شرایط سخت می‌شود.
+    </p>
+  </div>
+</div>
+
+<!-- ============ MILITARY / EW PANEL ============ -->
+<div id="milLab">
+  <div class="ml-head">
+    <div>
+      <div class="ml-title">اتاق تهدید و جنگ الکترونیک</div>
+      <div class="ml-sub">شبیه‌سازی تهدیدات نظامی و اخلال در ناوبری</div>
+    </div>
+    <button class="btn ml-close" id="milClose" aria-label="بستن">
+      <svg viewBox="0 0 16 16" width="14" height="14" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round"><path d="M4 4l8 8M12 4l-8 8"/></svg>
+    </button>
+  </div>
+
+  <div class="ml-tabs">
+    <div class="ml-tab active" data-tab="ew">اخلال الکترونیکی</div>
+    <div class="ml-tab" data-tab="threat">تهدیدات نظامی</div>
+    <div class="ml-tab" data-tab="cyber">تهدید سایبری</div>
+    <div class="ml-tab" data-tab="anal">وضعیت سامانه</div>
+  </div>
+
+  <div class="ml-tabpane active" data-pane="ew">
+    <div class="ml-sec">
+      <h4>وضعیت سامانه <span class="ml-badge on" id="mlStatusBadge">عادی</span></h4>
+      <div class="ml-status" id="mlStatus">
+        <span class="dot"></span>
+        <span id="mlStatusText">همه بخش‌ها سالم است</span>
+      </div>
+      <div class="ml-grid">
+        <div class="ml-metric"><small>شدت اخلال</small><b id="mmJS">—</b></div>
+        <div class="ml-metric"><small>برد نفوذ سیگنال</small><b id="mmBt">—</b></div>
+        <div class="ml-metric"><small>کیفیت سیگنال</small><b id="mmCN">—</b></div>
+        <div class="ml-metric"><small>خطای موقعیت (متر)</small><b id="mmPE">—</b></div>
+      </div>
+    </div>
+
+    <div class="ml-sec">
+      <h4>تنظیمات اخلال‌گر ماهواره‌ای</h4>
+      <div class="ml-control">
+        <label><span>توان اخلال‌گر (وات)</span><b id="mvPj">10.0</b></label>
+        <input id="mPj" type="range" min="0" max="100" step="0.1" value="10">
+      </div>
+      <div class="ml-control">
+        <label><span>قدرت آنتن</span><b id="mvGj">6.0</b></label>
+        <input id="mGj" type="range" min="0" max="30" step="0.1" value="6">
+      </div>
+      <div class="ml-control">
+        <label><span>فاصله تا منبع اخلال (متر)</span><b id="mvRj">500</b></label>
+        <input id="mRj" type="range" min="10" max="5000" step="10" value="500">
+      </div>
+      <div class="ml-control">
+        <label><span>پهنای اخلال (مگاهرتز)</span><b id="mvBj">2.0</b></label>
+        <input id="mBj" type="range" min="0.5" max="40" step="0.5" value="2">
+      </div>
+      <div class="ml-control">
+        <label><span>نوع اخلال</span><b id="mvJtype">پهن‌باند</b></label>
+        <div class="seg" style="margin-top:6px">
+          <button class="ml-jtype active" data-jtype="wide">پهن‌باند</button>
+          <button class="ml-jtype" data-jtype="narrow">باریک‌باند</button>
+          <button class="ml-jtype" data-jtype="sweep">جاروبی</button>
+          <button class="ml-jtype" data-jtype="pulse">پالسی</button>
+        </div>
+      </div>
+    </div>
+
+    <div class="ml-sec">
+      <h4>سناریوهای اخلال الکترونیکی</h4>
+      <div class="ml-events">
+        <button class="ml-ev" data-ew="gpsjam">اخلال ماهواره<span class="threat">شدید</span></button>
+        <button class="ml-ev" data-ew="gpsspoof">فریب ماهواره<span class="threat">بحرانی</span></button>
+        <button class="ml-ev" data-ew="rfjam">اخلال رادیویی<span class="threat">متوسط</span></button>
+        <button class="ml-ev" data-ew="emp">موج الکترومغناطیسی<span class="threat">بحرانی</span></button>
+        <button class="ml-ev" data-ew="radarlock">قفل رادار<span class="threat">شدید</span></button>
+        <button class="ml-ev" data-ew="missile">تهدید موشکی<span class="threat">بحرانی</span></button>
+        <button class="ml-ev" data-ew="laser">پرتو لیزری<span class="threat">شدید</span></button>
+        <button class="ml-ev" data-ew="cyberinj">داده‌ی جعلی<span class="threat">شدید</span></button>
+      </div>
+      <div class="ml-control" style="margin-top:12px">
+        <label><span>شدت تهدید</span><b id="mvSev">70%</b></label>
+        <input id="mSeverity" type="range" min="10" max="100" step="1" value="70">
+      </div>
+      <div style="display:flex;gap:7px;margin-top:10px">
+        <button class="btn" id="milRun" style="flex:1;justify-content:center;border-color:color-mix(in srgb, var(--orange) 40%, var(--line-2));color:var(--orange);">تهدید تصادفی</button>
+        <button class="btn danger" id="milStop" style="justify-content:center">توقف همه</button>
+      </div>
+    </div>
+
+    <div class="ml-sec">
+      <h4>نمای زنده طیف فرکانسی</h4>
+      <canvas class="ml-spectrum" id="mlSpectrum"></canvas>
+    </div>
+  </div>
+
+  <div class="ml-tabpane" data-pane="threat">
+    <div class="ml-sec">
+      <h4>تهدیدات نظامی و راداری</h4>
+      <div class="ml-grid">
+        <div class="ml-metric"><small>سطح مقطع پرنده</small><b id="mtRcs">0.05</b></div>
+        <div class="ml-metric"><small>برد شناسایی رادار</small><b id="mtRadarR">—</b></div>
+        <div class="ml-metric"><small>سطح تهدید</small><b id="mtLevel">—</b></div>
+        <div class="ml-metric"><small>زمان تا برخورد (ثانیه)</small><b id="mtTti">—</b></div>
+      </div>
+      <div class="ml-control" style="margin-top:12px">
+        <label><span>توان رادار (کیلووات)</span><b id="mvPt">100</b></label>
+        <input id="mPt" type="range" min="1" max="1000" step="1" value="100">
+      </div>
+      <div class="ml-control">
+        <label><span>قدرت آنتن رادار</span><b id="mvGradar">35</b></label>
+        <input id="mGradar" type="range" min="10" max="50" step="0.5" value="35">
+      </div>
+      <div class="ml-control">
+        <label><span>فرکانس رادار (گیگاهرتز)</span><b id="mvFr">9.5</b></label>
+        <input id="mFr" type="range" min="1" max="40" step="0.1" value="9.5">
+      </div>
+      <div class="ml-control">
+        <label><span>سطح مقطع پرنده (متر مربع)</span><b id="mvRcs">0.05</b></label>
+        <input id="mRcs" type="range" min="0.001" max="2" step="0.001" value="0.05">
+      </div>
+    </div>
+    <div class="ml-sec">
+      <h4>موشک و پدافند</h4>
+      <div class="ml-events">
+        <button class="ml-ev" data-thr="sam">موشک پدافندی<span class="threat">بحرانی</span></button>
+        <button class="ml-ev" data-thr="aaa">توپ ضدهوایی<span class="threat">شدید</span></button>
+        <button class="ml-ev" data-thr="manpads">موشک دوش‌پرتاب<span class="threat">شدید</span></button>
+        <button class="ml-ev" data-thr="interceptor">جنگنده رهگیر<span class="threat">شدید</span></button>
+        <button class="ml-ev" data-thr="dir">مقابله فروسرخ<span class="threat">متوسط</span></button>
+        <button class="ml-ev" data-thr="net">شبکه پدافند<span class="threat">بحرانی</span></button>
+      </div>
+    </div>
+  </div>
+
+  <div class="ml-tabpane" data-pane="cyber">
+    <div class="ml-sec">
+      <h4>حملات سایبری و نفوذ</h4>
+      <div class="ml-grid">
+        <div class="ml-metric"><small>سالم بودن ارتباط</small><b id="mcLink">100%</b></div>
+        <div class="ml-metric"><small>تلاش‌های ناموفق ورود</small><b id="mcAuth">0</b></div>
+        <div class="ml-metric"><small>افت داده‌ها</small><b id="mcLoss">0%</b></div>
+        <div class="ml-metric"><small>داده‌های دستکاری‌شده</small><b id="mcTamper">0%</b></div>
+      </div>
+      <div class="ml-events" style="margin-top:12px">
+        <button class="ml-ev" data-cyb="datainj">تزریق داده<span class="threat">شدید</span></button>
+        <button class="ml-ev" data-cyb="mitm">شنود ارتباط<span class="threat">شدید</span></button>
+        <button class="ml-ev" data-cyb="dos">حمله سیل‌آسا<span class="threat">متوسط</span></button>
+        <button class="ml-ev" data-cyb="malware">بدافزار<span class="threat">بحرانی</span></button>
+        <button class="ml-ev" data-cyb="keylog">ضبط کلیدها<span class="threat">متوسط</span></button>
+        <button class="ml-ev" data-cyb="zeroday">آسیب ناشناخته<span class="threat">بحرانی</span></button>
+      </div>
+    </div>
+  </div>
+
+  <div class="ml-tabpane" data-pane="anal">
+    <div class="ml-sec">
+      <h4>خلاصه وضعیت</h4>
+      <div id="mlSummary">در حال دریافت داده‌ها...</div>
+    </div>
+    <div class="ml-sec">
+      <h4>گزارش رخدادها</h4>
+      <div class="ml-log" id="mlLog">
+        <div class="row-ok">[سامانه] همه بخش‌ها فعال</div>
+        <div class="row-info">[سامانه] ماهواره‌یاب، ناوبر درونی و حسگر کوانتومی در حال کار</div>
+      </div>
+    </div>
+    <p class="ml-note">
+      این بخش رفتار پرنده را در برابر تهدیدات الکترونیکی و فیزیکی شبیه‌سازی می‌کند. با فعال کردن هر تهدید، اثر آن به‌صورت زنده روی خطای ناوبری مشاهده می‌شود.
+    </p>
+  </div>
+</div>
+
+<!-- ============ HELP MODAL ============ -->
+<div id="helpOverlay">
+  <div id="helpModal">
+    <div class="hm-head">
+      <h2>
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round">
+          <circle cx="12" cy="12" r="9"></circle>
+          <path d="M9.2 9a2.8 2.8 0 0 1 5.4.9c0 1.9-2.8 2.4-2.8 2.4"></path>
+          <circle cx="12" cy="16.5" r=".6" fill="currentColor" stroke="none"></circle>
+        </svg>
+        راهنمای استفاده از سیستم شبیه‌ساز
+      </h2>
+      <button class="btn hm-close" id="helpClose" aria-label="بستن">
+        <svg viewBox="0 0 16 16" width="14" height="14" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round"><path d="M4 4l8 8M12 4l-8 8"/></svg>
+      </button>
+    </div>
+    <div class="hm-body">
+
+      <div class="hm-section">
+        <h3>
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round"><circle cx="12" cy="12" r="9"/><polygon points="10 8 16 12 10 16 10 8"/></svg>
+          شروع سریع
+        </h3>
+        <p>برای شروع، دکمه <span class="hm-badge cyan">اجرا</span> در نوار بالا را بزنید. پرنده روی مسیر انتخاب‌شده حرکت می‌کند و سه نشانگر روی صفحه ظاهر می‌شوند که هرکدام موقعیت تخمینی یک روش ناوبری را نشان می‌دهند.</p>
+        <ul>
+          <li>نشانگر <b style="color:var(--red)">سرخ</b> = ناوبری درونی</li>
+          <li>نشانگر <b style="color:var(--amber)">نارنجی</b> = ناوبری ماهواره‌ای</li>
+          <li>نشانگر <b style="color:var(--cyan)">فیروزه‌ای</b> = ناوبری ترکیبی کوانتومی</li>
+        </ul>
+      </div>
+
+      <div class="hm-section">
+        <h3>
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round"><polyline points="22 12 18 12 15 21 9 3 6 12 2 12"/></svg>
+          پنل کنترل اصلی
+        </h3>
+        <div class="hm-grid">
+          <div class="hm-card">
+            <h5>
+              <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round"><path d="M12 2 L2 7 L12 12 L22 7 Z"/><path d="M2 17 L12 22 L22 17"/><path d="M2 12 L12 17 L22 12"/></svg>
+              مسیر پرواز
+            </h5>
+            <p>چهار حالت مسیر: دایره، زیگزاگ، دلخواه (کلیک روی زمین) و تاکتیکی. مسیر دلخواه را خودتان با کلیک روی زمین می‌سازید.</p>
+          </div>
+          <div class="hm-card">
+            <h5>
+              <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round"><circle cx="12" cy="12" r="3"/></svg>
+              سرعت و محیط
+            </h5>
+            <p>سرعت پرنده و میزان خطای حسگرهای درونی را تنظیم می‌کند. مقدار بیشتر یعنی پرنده مسیر واقعی را بدتر دنبال می‌کند.</p>
+          </div>
+          <div class="hm-card">
+            <h5>
+              <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round"><path d="M2 12s3-7 10-7 10 7 10 7-3 7-10 7-10-7-10-7z"/><circle cx="12" cy="12" r="3"/></svg>
+              حسگر کوانتومی
+            </h5>
+            <p>دقت و سرعت به‌روزرسانی حسگر کوانتومی را تعیین می‌کند. دقت بالاتر یعنی اصلاح دقیق‌تر موقعیت.</p>
+          </div>
+          <div class="hm-card">
+            <h5>
+              <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round"><path d="M21 10c0 7-9 13-9 13s-9-6-9-13a9 9 0 0 1 18 0z"/><circle cx="12" cy="10" r="3"/></svg>
+              سیگنال ماهواره‌ای
+            </h5>
+            <p>اتصال و قطع سیگنال ماهواره‌ای. وقتی قطع باشد، پرنده فقط به حسگرهای داخلی و کوانتومی تکیه می‌کند.</p>
+          </div>
+        </div>
+      </div>
+
+      <div class="hm-section">
+        <h3>
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round"><rect x="2" y="3" width="20" height="14" rx="2"/><line x1="8" y1="21" x2="16" y2="21"/><line x1="12" y1="17" x2="12" y2="21"/></svg>
+          پنل لرزشگیر
+        </h3>
+        <p>این پنل رفتار پرنده را در برابر ارتعاشات و ضربات محیطی کنترل می‌کند:</p>
+        <ul>
+          <li><b>لایه اول:</b> بخش غیرفعال که با کمک فنر و میراکننده، ارتعاش را کم می‌کند.</li>
+          <li><b>لایه دوم:</b> بخش فعال که با واکنش لحظه‌ای، ارتعاش باقی‌مانده را خنثی می‌کند.</li>
+          <li><b>حوادث محیطی:</b> زلزله، باد، تلاطم، ضربه، شلیک و... که هرکدام رفتار متفاوتی دارند.</li>
+        </ul>
+        <div class="hm-note">
+          <p>اگر فرکانس ارتعاش با فرکانس طبیعی سامانه یکی شود، پدیده «هم‌فرکانسی» رخ می‌دهد و ارتعاش ناگهان بسیار شدید می‌شود. سامانه به شما هشدار می‌دهد.</p>
+        </div>
+      </div>
+
+      <div class="hm-section">
+        <h3>
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round"><path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z"/></svg>
+          پنل تهدید و جنگ الکترونیک
+        </h3>
+        <p>در این پنل می‌توانید تهدیدهای نظامی و الکترونیکی را فعال کنید:</p>
+        <ul>
+          <li><b>اخلال الکترونیکی:</b> اخلال ماهواره، فریب سیگنال، موج الکترومغناطیسی، قفل رادار و...</li>
+          <li><b>تهدیدات نظامی:</b> موشک پدافندی، توپ ضدهوایی، جنگنده رهگیر و...</li>
+          <li><b>تهدید سایبری:</b> تزریق داده، شنود، بدافزار و...</li>
+        </ul>
+        <p>با فعال شدن هر تهدید، اثر آن به‌صورت زنده روی خطای ناوبری دیده می‌شود.</p>
+      </div>
+
+      <div class="hm-section">
+        <h3>
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round"><path d="M22 12h-4l-3 9L9 3l-3 9H2"/></svg>
+          آمار پایین صفحه
+        </h3>
+        <p>سه شاخص خطا (درونی، ماهواره‌ای و ترکیبی) به‌صورت زنده نمایش داده می‌شوند. خطای ترکیبی معمولاً کمترین مقدار را دارد چون همه منابع را با هم ترکیب می‌کند.</p>
+      </div>
+
+      <div class="hm-section">
+        <h3>
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round"><circle cx="12" cy="12" r="9"/><path d="M12 16v-4M12 8h.01"/></svg>
+          نکات کاربردی
+        </h3>
+        <ul>
+          <li>برای دیدن اثر اخلال، سیگنال ماهواره را قطع و سپس «اخلال ماهواره» را فعال کنید.</li>
+          <li>برای شبیه‌سازی محیط پرنویز، خطای حسگر درونی را به بالای ۸۰٪ برسانید.</li>
+          <li>برای کمترین لرزش، فرکانس طبیعی را بسیار کمتر از فرکانس ارتعاش محیط بگذارید.</li>
+          <li>در حالت «دلخواه»، چند نقطه روی زمین کلیک کنید تا مسیر خودتان ساخته شود.</li>
+        </ul>
+      </div>
+
+    </div>
+  </div>
+</div>
+
+<script>
+/* ============ ICONS ============ */
+const ICONS = {
+  play: '<svg viewBox="0 0 24 24" fill="currentColor"><path d="M8 5.14v13.72c0 .83.9 1.34 1.6.91l10.8-6.86c.66-.42.66-1.4 0-1.82L9.6 4.23C8.9 3.8 8 4.31 8 5.14z"/></svg>',
+  pause:'<svg viewBox="0 0 24 24" fill="currentColor"><rect x="6" y="5" width="4" height="14" rx="1"/><rect x="14" y="5" width="4" height="14" rx="1"/></svg>',
+  reset:'<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M3 12a9 9 0 1 0 3-6.7"/><path d="M3 4v5h5"/></svg>',
+  help:'<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="9"/><path d="M9.2 9a2.8 2.8 0 0 1 5.4.9c0 1.9-2.8 2.4-2.8 2.4"/><circle cx="12" cy="16.5" r=".6" fill="currentColor" stroke="none"/></svg>',
+  shield:'<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M12 3l8 3v6c0 4.5-3.5 8.5-8 9.5C7.5 20.5 4 16.5 4 12V6l8-3z"/></svg>',
+  sword:'<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M14.5 17.5L3 6V3h3l11.5 11.5"/><path d="M13 19l6-6M16 16l4 4M19 21l2-2"/></svg>',
+  sliders:'<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><line x1="4" y1="21" x2="4" y2="14"/><line x1="4" y1="10" x2="4" y2="3"/><line x1="12" y1="21" x2="12" y2="12"/><line x1="12" y1="8" x2="12" y2="3"/><line x1="20" y1="21" x2="20" y2="16"/><line x1="20" y1="12" x2="20" y2="3"/><line x1="1" y1="14" x2="7" y2="14"/><line x1="9" y1="8" x2="15" y2="8"/><line x1="17" y1="16" x2="23" y2="16"/></svg>',
+};
+document.getElementById('playBtn').innerHTML = ICONS.play + ' <span>اجرا</span>';
+document.getElementById('resetBtn').innerHTML = ICONS.reset + ' <span>ریست</span>';
+
+/* ============ STATE ============ */
+const params = {
+  running:false, pathMode:'circle', speed:1.1, imuNoise:0.45, biasDrift:0.35,
+  qPrecision:0.85, qRate:0.35, gpsOn:true, gpsNoise:0.2,
+};
+let customWaypoints = [];
+
+const el = id => document.getElementById(id);
+['speed','imuNoise','biasDrift','qPrecision','qRate','gpsNoise'].forEach(key=>{
+  el(key).addEventListener('input', e=>{
+    params[key] = parseFloat(e.target.value);
+    syncLabels();
+  });
+});
+function syncLabels(){
+  el('v-speed').textContent = params.speed.toFixed(2);
+  el('v-imu').textContent = Math.round(params.imuNoise*100)+'%';
+  el('v-bias').textContent = Math.round(params.biasDrift*100)+'%';
+  el('v-qprec').textContent = Math.round(params.qPrecision*100)+'%';
+  el('v-qrate').textContent = Math.round(params.qRate*100)+'%';
+  el('v-gps').textContent = Math.round(params.gpsNoise*100)+'%';
+}
+syncLabels();
+
+document.querySelectorAll('[data-path]').forEach(btn=>{
+  btn.addEventListener('click', ()=>{
+    document.querySelectorAll('[data-path]').forEach(b=>b.classList.remove('active'));
+    btn.classList.add('active');
+    params.pathMode = btn.dataset.path;
+    if(params.pathMode!=='custom'){ customWaypoints = []; clearWaypointMeshes(); }
+    resetSim();
+  });
+});
+
+el('playBtn').addEventListener('click', ()=>{
+  params.running = !params.running;
+  el('playBtn').innerHTML = (params.running?ICONS.pause:ICONS.play) + (params.running?' <span>توقف</span>':' <span>اجرا</span>');
+  el('playBtn').classList.toggle('active', true);
+  clock.getDelta();
+});
+el('resetBtn').addEventListener('click', resetSim);
+
+const gpsBtn = el('gpsToggle');
+gpsBtn.addEventListener('click', ()=>{
+  params.gpsOn = !params.gpsOn;
+  gpsBtn.textContent = params.gpsOn ? 'متصل' : 'قطع سیگنال';
+  gpsBtn.className = 'btn ' + (params.gpsOn ? 'on' : 'off');
+  el('gpsNoiseRow').style.opacity = params.gpsOn ? 1 : 0.4;
+});
+
+/* ============ MOBILE DRAWER TOGGLE ============ */
+(function setupMobileControlsBtn(){
+  const topBtns = document.getElementById('topbtns');
+  const b = document.createElement('button');
+  b.id = 'controlsBtn';
+  b.className = 'btn';
+  b.innerHTML = ICONS.sliders + ' <span>کنترل‌ها</span>';
+  // Insert after reset button, before other dynamically added buttons
+  const resetBtn = document.getElementById('resetBtn');
+  if(resetBtn && resetBtn.nextSibling){
+    topBtns.insertBefore(b, resetBtn.nextSibling);
+  } else {
+    topBtns.appendChild(b);
+  }
+
+  // Hide on desktop, show on mobile via CSS
+  const styleEl = document.createElement('style');
+  styleEl.textContent = '#controlsBtn{display:none!important;} @media (max-width:820px){#controlsBtn{display:inline-flex!important;}}';
+  document.head.appendChild(styleEl);
+
+  b.onclick = () => {
+    const open = document.body.classList.toggle('drawer-open');
+    b.classList.toggle('active', open);
+  };
+
+  const closeBtn = document.getElementById('panelCloseBtn');
+  if(closeBtn){
+    closeBtn.onclick = () => {
+      document.body.classList.remove('drawer-open');
+      b.classList.remove('active');
+    };
+  }
+  const backdrop = document.getElementById('drawerBackdrop');
+  if(backdrop){
+    backdrop.onclick = () => {
+      document.body.classList.remove('drawer-open');
+      b.classList.remove('active');
+    };
+  }
+})();
+
+/* ============ HELP MODAL ============ */
+(function addHelpBtn(){
+  const topBtns = document.getElementById('topbtns');
+  const b = document.createElement('button');
+  b.id = 'helpBtn';
+  b.className = 'btn';
+  b.innerHTML = ICONS.help + ' <span>راهنما</span>';
+  topBtns.appendChild(b);
+  const overlay = document.getElementById('helpOverlay');
+  b.onclick = () => { overlay.classList.add('open'); document.body.style.overflow='hidden'; };
+  document.getElementById('helpClose').onclick = () => { overlay.classList.remove('open'); document.body.style.overflow=''; };
+  overlay.addEventListener('click', (e) => {
+    if(e.target === overlay){ overlay.classList.remove('open'); document.body.style.overflow=''; }
+  });
+  document.addEventListener('keydown', (e) => {
+    if(e.key === 'Escape' && overlay.classList.contains('open')){
+      overlay.classList.remove('open'); document.body.style.overflow='';
+    }
+  });
+})();
+
+/* ============ THREE.JS SETUP ============ */
+const container = document.getElementById('scene-container');
+const scene = new THREE.Scene();
+scene.fog = new THREE.FogExp2(0x050810, 0.012);
+
+const camera = new THREE.PerspectiveCamera(50, window.innerWidth/window.innerHeight, 0.1, 2000);
+const renderer = new THREE.WebGLRenderer({antialias:true, alpha:false});
+renderer.setSize(window.innerWidth, window.innerHeight);
+renderer.setPixelRatio(Math.min(devicePixelRatio,2));
+renderer.domElement.id = 'three-canvas';
+container.appendChild(renderer.domElement);
+
+scene.add(new THREE.AmbientLight(0x8899cc, 0.6));
+const dirLight = new THREE.DirectionalLight(0xbfe9ff, 1.1);
+dirLight.position.set(60,120,40);
+scene.add(dirLight);
+const rimLight = new THREE.PointLight(0x4be8de, 1.4, 400);
+rimLight.position.set(-60,50,-60);
+scene.add(rimLight);
+
+{
+  const starGeo = new THREE.BufferGeometry();
+  const N = 1400, pos = new Float32Array(N*3);
+  for(let i=0;i<N;i++){
+    const r = 300 + Math.random()*500;
+    const th = Math.random()*Math.PI*2, ph = Math.acos(2*Math.random()-1);
+    pos[i*3] = r*Math.sin(ph)*Math.cos(th);
+    pos[i*3+1] = Math.abs(r*Math.cos(ph))*0.6 + 20;
+    pos[i*3+2] = r*Math.sin(ph)*Math.sin(th);
+  }
+  starGeo.setAttribute('position', new THREE.BufferAttribute(pos,3));
+  const starMat = new THREE.PointsMaterial({color:0xaad4ff, size:1.3, transparent:true, opacity:0.75});
+  scene.add(new THREE.Points(starGeo, starMat));
+}
+
+function glowTexture(hex){
+  const c = document.createElement('canvas'); c.width=c.height=128;
+  const ctx = c.getContext('2d');
+  const g = ctx.createRadialGradient(64,64,0,64,64,64);
+  g.addColorStop(0, hex+'ff'); g.addColorStop(0.35, hex+'aa'); g.addColorStop(1, hex+'00');
+  ctx.fillStyle = g; ctx.fillRect(0,0,128,128);
+  return new THREE.CanvasTexture(c);
+}
+function makeGlowSprite(hexColorStr, size){
+  const tex = glowTexture(hexColorStr);
+  const mat = new THREE.SpriteMaterial({map:tex, transparent:true, depthWrite:false, blending:THREE.AdditiveBlending});
+  const spr = new THREE.Sprite(mat);
+  spr.scale.set(size,size,1);
+  return spr;
+}
+
+const GROUND_SIZE = 220;
+const grid = new THREE.GridHelper(GROUND_SIZE, 44, 0x2a4a66, 0x152238);
+grid.position.y = 0;
+scene.add(grid);
+const groundMat = new THREE.MeshBasicMaterial({color:0x0a1220, transparent:true, opacity:0.35});
+const groundMesh = new THREE.Mesh(new THREE.PlaneGeometry(GROUND_SIZE,GROUND_SIZE), groundMat);
+groundMesh.rotation.x = -Math.PI/2;
+groundMesh.position.y = -0.02;
+scene.add(groundMesh);
+
+const floorGlowMesh = new THREE.Mesh(new THREE.CircleGeometry(85,48), new THREE.MeshBasicMaterial({color:0x0e2a33, transparent:true, opacity:0.5}));
+floorGlowMesh.rotation.x = -Math.PI/2; floorGlowMesh.position.y=-0.01;
+scene.add(floorGlowMesh);
+
+/* ============ DRONE ============ */
+function buildDrone(){
+  const g = new THREE.Group();
+
+  const bodyMat = new THREE.MeshStandardMaterial({color:0x3a4556, metalness:0.6, roughness:0.35, emissive:0x1a2230, emissiveIntensity:0.3});
+  const darkMat = new THREE.MeshStandardMaterial({color:0x1a1f2a, metalness:0.5, roughness:0.6});
+  const armMat = new THREE.MeshStandardMaterial({color:0x2a3342, metalness:0.7, roughness:0.3});
+  const rotorBladeMat = new THREE.MeshStandardMaterial({color:0x111820, metalness:0.4, roughness:0.7, transparent:true, opacity:0.65, side:THREE.DoubleSide});
+  const motorMat = new THREE.MeshStandardMaterial({color:0x8a9bb0, metalness:0.9, roughness:0.2});
+  const sensorMat = new THREE.MeshStandardMaterial({color:0x4be8de, emissive:0x1f6e68, emissiveIntensity:0.8, metalness:0.3, roughness:0.4});
+  const cameraMat = new THREE.MeshStandardMaterial({color:0x0a0e14, metalness:0.5, roughness:0.4});
+  const lensMat = new THREE.MeshStandardMaterial({color:0x1a3a4a, emissive:0x0a2030, emissiveIntensity:0.5, metalness:0.9, roughness:0.1});
+
+  const bodyCore = new THREE.Mesh(new THREE.BoxGeometry(1.8, 0.35, 2.2), bodyMat);
+  g.add(bodyCore);
+
+  const canopy = new THREE.Mesh(new THREE.BoxGeometry(1.3, 0.28, 1.5), darkMat);
+  canopy.position.set(0, 0.28, 0.1);
+  g.add(canopy);
+
+  const nose = new THREE.Mesh(new THREE.CylinderGeometry(0.28, 0.35, 0.5, 12), cameraMat);
+  nose.rotation.x = Math.PI/2;
+  nose.position.set(0, -0.05, 1.1);
+  g.add(nose);
+
+  const gimbalBall = new THREE.Mesh(new THREE.SphereGeometry(0.22, 16, 12), cameraMat);
+  gimbalBall.position.set(0, -0.2, 1.25);
+  g.add(gimbalBall);
+  const lens = new THREE.Mesh(new THREE.CircleGeometry(0.1, 16), lensMat);
+  lens.position.set(0, -0.2, 1.46);
+  lens.rotation.x = -0.1;
+  g.add(lens);
+
+  const rotors = [];
+  const armPositions = [
+    {x:1.5, z:1.5},
+    {x:-1.5, z:1.5},
+    {x:1.5, z:-1.5},
+    {x:-1.5, z:-1.5},
+  ];
+
+  armPositions.forEach(({x, z}) => {
+    const armLen = Math.sqrt(x*x + z*z);
+    const armGeo = new THREE.CylinderGeometry(0.06, 0.06, armLen, 8);
+    const arm = new THREE.Mesh(armGeo, armMat);
+    const midX = x/2, midZ = z/2;
+    arm.position.set(midX, 0, midZ);
+    const dir = new THREE.Vector3(x, 0, z).normalize();
+    const up = new THREE.Vector3(0,1,0);
+    const quat = new THREE.Quaternion().setFromUnitVectors(up, dir);
+    arm.quaternion.copy(quat);
+    arm.rotateX(Math.PI/2);
+    g.add(arm);
+
+    const motor = new THREE.Mesh(new THREE.CylinderGeometry(0.14, 0.16, 0.18, 12), motorMat);
+    motor.position.set(x, 0.08, z);
+    g.add(motor);
+
+    const hub = new THREE.Mesh(new THREE.CylinderGeometry(0.05, 0.05, 0.06, 8), darkMat);
+    hub.position.set(x, 0.18, z);
+    g.add(hub);
+
+    const propGroup = new THREE.Group();
+    propGroup.position.set(x, 0.22, z);
+    for(let b=0; b<2; b++){
+      const bladeGeo = new THREE.BoxGeometry(1.1, 0.02, 0.14);
+      const blade = new THREE.Mesh(bladeGeo, rotorBladeMat);
+      blade.rotation.y = b * Math.PI;
+      blade.position.set(
+        Math.cos(b * Math.PI) * 0.55,
+        0,
+        Math.sin(b * Math.PI) * 0.55
+      );
+      propGroup.add(blade);
+    }
+    g.add(propGroup);
+    rotors.push(propGroup);
+
+    const skid = new THREE.Mesh(new THREE.CylinderGeometry(0.03, 0.03, 0.7, 6), darkMat);
+    skid.position.set(x*0.7, -0.3, z*0.7);
+    skid.rotation.z = Math.PI/2;
+    g.add(skid);
+  });
+
+  const ant1 = new THREE.Mesh(new THREE.CylinderGeometry(0.015, 0.015, 0.5, 6), motorMat);
+  ant1.position.set(0.3, 0.4, -0.8);
+  g.add(ant1);
+  const ant2 = new THREE.Mesh(new THREE.CylinderGeometry(0.012, 0.012, 0.4, 6), motorMat);
+  ant2.position.set(-0.3, 0.36, -0.85);
+  g.add(ant2);
+
+  const sensorPod = new THREE.Mesh(new THREE.BoxGeometry(0.5, 0.12, 0.3), sensorMat);
+  sensorPod.position.set(0, -0.22, 0.3);
+  g.add(sensorPod);
+
+  const gpsDome = new THREE.Mesh(new THREE.SphereGeometry(0.14, 12, 8, 0, Math.PI*2, 0, Math.PI/2), darkMat);
+  gpsDome.position.set(0, 0.42, -0.5);
+  g.add(gpsDome);
+
+  const navLight = new THREE.PointLight(0xff2200, 0.6, 15);
+  navLight.position.set(0, 0.5, -1);
+  g.add(navLight);
+
+  const beacon = makeGlowSprite('#4be8de', 2.0);
+  beacon.position.set(0, 0.6, 0);
+  g.add(beacon);
+
+  g.userData.rotors = rotors;
+  g.userData.navLight = navLight;
+  return g;
+}
+const drone = buildDrone();
+scene.add(drone);
+
+/* ============ PLATFORM MODELS ============ */
+function pMat(color, metal=0.45, rough=0.42){
+  return new THREE.MeshStandardMaterial({color, metalness:metal, roughness:rough});
+}
+function pGlass(){
+  return new THREE.MeshStandardMaterial({color:0x173448, metalness:0.5, roughness:0.12, transparent:true, opacity:0.65});
+}
+function pMesh(group, geo, mat, x=0,y=0,z=0, rx=0,ry=0,rz=0, sx=1,sy=1,sz=1){
+  const m=new THREE.Mesh(geo,mat); m.position.set(x,y,z); m.rotation.set(rx,ry,rz); m.scale.set(sx,sy,sz); group.add(m); return m;
+}
+function buildHelicopter(){
+  const g=new THREE.Group(), body=pMat(0x4a5563,.7,.32), dark=pMat(0x202933,.5,.5), glass=pGlass(), metal=pMat(0x9aaabe,.9,.2);
+  pMesh(g,new THREE.SphereGeometry(1.15,20,14),body,0,1.9,0,0,0,0,1.0,.62,1.6);
+  pMesh(g,new THREE.BoxGeometry(1.15,.46,1.6),glass,0,2.0,.72,0,0,0,1,1,1.1);
+  pMesh(g,new THREE.CylinderGeometry(.12,.16,4.2,10),body,0,1.85,-2.5,Math.PI/2,0,0);
+  pMesh(g,new THREE.BoxGeometry(.48,.18,1.3),body,0,1.35,-3.85);
+  pMesh(g,new THREE.CylinderGeometry(.18,.18,.22,16),metal,0,3.15,.0);
+  const rotor=new THREE.Group(); rotor.position.set(0,3.28,0); g.add(rotor);
+  pMesh(rotor,new THREE.BoxGeometry(4.8,.05,.16),dark); pMesh(rotor,new THREE.BoxGeometry(.16,.05,4.0),dark);
+  const tailRotor=new THREE.Group(); tailRotor.position.set(0,1.88,-4.48); g.add(tailRotor);
+  pMesh(tailRotor,new THREE.BoxGeometry(1.25,.04,.10),dark); pMesh(tailRotor,new THREE.BoxGeometry(.10,.04,1.05),dark);
+  for(const x of [-.8,.8]) pMesh(g,new THREE.CylinderGeometry(.04,.04,2.3,8),dark,x,0.8,.35,0,0,Math.PI/2);
+  g.userData.rotorGroups=[rotor,tailRotor]; g.userData.visualY=0;
+  return g;
+}
+function buildAirplane(){
+  const g=new THREE.Group(), body=pMat(0x657486,.72,.3), dark=pMat(0x202733,.45,.52), glass=pGlass(), metal=pMat(0xa8b5c5,.9,.2);
+  pMesh(g,new THREE.CylinderGeometry(.72,.92,7.8,18),body,0,1.7,0,Math.PI/2,0,0);
+  pMesh(g,new THREE.SphereGeometry(.66,18,12),glass,0,1.85,2.3,0,0,0,.95,.62,1.25);
+  pMesh(g,new THREE.BoxGeometry(6.6,.18,1.15),body,0,1.45,.0);
+  pMesh(g,new THREE.BoxGeometry(2.25,.16,.75),body,0,1.55,-2.9);
+  pMesh(g,new THREE.BoxGeometry(.18,1.85,.65),body,0,2.45,-2.85);
+  for(const x of [-1.55,1.55]){
+    pMesh(g,new THREE.CylinderGeometry(.34,.34,.62,14),dark,x,.85,.0,Math.PI/2,0,0,1);
+    pMesh(g,new THREE.CylinderGeometry(.28,.28,.78,14),metal,x,0.25,0,Math.PI/2,0);
+  }
+  for(const x of [-1.8,1.8]) pMesh(g,new THREE.CylinderGeometry(.26,.34,1.45,14),metal,x,1.05,.35,Math.PI/2,0);
+  g.userData.visualY=0; return g;
+}
+function buildCar(){
+  const g=new THREE.Group(), body=pMat(0x496071,.65,.3), dark=pMat(0x1c2530,.4,.5), glass=pGlass(), rubber=pMat(0x10151b,.2,.82), hub=pMat(0xa4b2c4,.85,.22);
+  pMesh(g,new THREE.BoxGeometry(3.1,.72,5.3),body,0,1.05,0);
+  pMesh(g,new THREE.BoxGeometry(2.25,.7,2.55),glass,0,1.62,-.05);
+  for(const x of [-1.65,1.65]) for(const z of [-1.7,1.7]){
+    pMesh(g,new THREE.CylinderGeometry(.55,.55,.34,16),rubber,x,.55,z,0,0,Math.PI/2);
+    pMesh(g,new THREE.CylinderGeometry(.24,.24,.36,12),hub,x,.55,z,0,0,Math.PI/2);
+  }
+  pMesh(g,new THREE.BoxGeometry(3.0,.12,.22),dark,0,1.45,2.55);
+  g.userData.visualY=0; return g;
+}
+function buildTank(){
+  const g=new THREE.Group(), hull=pMat(0x4e5a46,.68,.42), dark=pMat(0x1a211c,.45,.65), metal=pMat(0x74806b,.82,.35);
+  for(const x of [-1.55,1.55]) pMesh(g,new THREE.BoxGeometry(.75,.72,4.8),dark,x,.55,0);
+  pMesh(g,new THREE.BoxGeometry(3.9,.95,4.5),hull,0,1.05,0);
+  pMesh(g,new THREE.CylinderGeometry(1.3,1.45,.55,16),metal,0,1.75,.25);
+  pMesh(g,new THREE.BoxGeometry(.42,.42,3.1),metal,0,2.03,1.55);
+  pMesh(g,new THREE.BoxGeometry(3.0,.15,.7),dark,0,1.55,-1.35);
+  g.userData.visualY=0; return g;
+}
+function buildBoat(){
+  const g=new THREE.Group(), hull=pMat(0x36556a,.75,.28), deck=pMat(0x657685,.7,.3), dark=pMat(0x18232d,.45,.55), glass=pGlass();
+  pMesh(g,new THREE.ConeGeometry(1.35,5.8,8),hull,0,.65,0,Math.PI/2,0,0);
+  pMesh(g,new THREE.BoxGeometry(1.9,.24,3.1),deck,0,1.35,.25);
+  pMesh(g,new THREE.BoxGeometry(1.25,1.0,1.45),glass,0,1.85,.85);
+  pMesh(g,new THREE.CylinderGeometry(.06,.06,1.9,8),dark,0,2.8,-.6);
+  pMesh(g,new THREE.BoxGeometry(1.0,.06,.06),dark,0,3.15,-.6);
+  g.userData.visualY=0; return g;
+}
+function buildFrigate(){
+  const g=new THREE.Group(), hull=pMat(0x3c4b58,.78,.3), deck=pMat(0x6c7b87,.7,.32), dark=pMat(0x18222b,.45,.55), metal=pMat(0xa0adba,.9,.22);
+  pMesh(g,new THREE.ConeGeometry(2.35,8.7,10),hull,0,.85,0,Math.PI/2,0,0);
+  pMesh(g,new THREE.BoxGeometry(3.2,.25,6.3),deck,0,1.65,-.1);
+  pMesh(g,new THREE.BoxGeometry(1.75,1.15,2.2),pGlass(),0,2.3,.7);
+  pMesh(g,new THREE.CylinderGeometry(.08,.08,2.6,8),metal,0,3.75,-.8);
+  pMesh(g,new THREE.BoxGeometry(1.5,.08,.08),metal,0,4.55,-.8);
+  pMesh(g,new THREE.BoxGeometry(2.6,.14,.4),dark,0,2.0,-2.2);
+  g.userData.visualY=0; return g;
+}
+function buildShip(){
+  const g=new THREE.Group(), hull=pMat(0x42515e,.78,.32), deck=pMat(0x6d7b87,.7,.33), dark=pMat(0x202a33,.45,.58), accent=pMat(0x9aa7b3,.88,.23);
+  pMesh(g,new THREE.ConeGeometry(3.0,11.0,10),hull,0,1.0,0,Math.PI/2,0,0);
+  pMesh(g,new THREE.BoxGeometry(4.2,.3,8.4),deck,0,2.0,-.1);
+  pMesh(g,new THREE.BoxGeometry(3.1,2.4,2.4),deck,0,3.0,1.7);
+  pMesh(g,new THREE.BoxGeometry(2.0,1.3,1.7),dark,0,4.7,1.7);
+  pMesh(g,new THREE.CylinderGeometry(.12,.12,3.2,8),accent,0,6.7,-1.8);
+  pMesh(g,new THREE.BoxGeometry(1.9,.08,.08),accent,0,7.45,-1.8);
+  for(const x of [-1.35,1.35]) pMesh(g,new THREE.BoxGeometry(.12,.12,5.5),dark,x,3.1,-1.2);
+  g.userData.visualY=0; return g;
+}
+
+const PLATFORM_PROFILES = {
+  drone:{fa:'پهپاد چهارملخه',massKg:4.0,isolatedKg:3.0,refSpeedKmh:54,gnssHz:10,imuHz:200,vibHz:38,vibG:.08,fn:3.0,zeta:.30,imuNoise:.28,bias:.20,qPrecision:.90,qRate:.50,gpsNoise:.12,speedSim:1.10,visualY:3.0,model:'drone'},
+  helicopter:{fa:'هلیکوپتر',massKg:2500,isolatedKg:18,refSpeedKmh:210,gnssHz:10,imuHz:200,vibHz:18,vibG:.12,fn:2.2,zeta:.28,imuNoise:.34,bias:.22,qPrecision:.88,qRate:.45,gpsNoise:.14,speedSim:1.55,visualY:1.0,model:'helicopter'},
+  airplane:{fa:'هواپیما',massKg:30000,isolatedKg:45,refSpeedKmh:820,gnssHz:10,imuHz:100,vibHz:28,vibG:.06,fn:2.8,zeta:.24,imuNoise:.24,bias:.16,qPrecision:.92,qRate:.55,gpsNoise:.10,speedSim:2.5,visualY:1.2,model:'airplane'},
+  car:{fa:'خودرو',massKg:1500,isolatedKg:16,refSpeedKmh:90,gnssHz:10,imuHz:100,vibHz:12,vibG:.03,fn:1.7,zeta:.32,imuNoise:.18,bias:.12,qPrecision:.90,qRate:.60,gpsNoise:.10,speedSim:.72,visualY:.0,model:'car'},
+  tank:{fa:'تانک',massKg:60000,isolatedKg:25,refSpeedKmh:65,gnssHz:10,imuHz:100,vibHz:22,vibG:.08,fn:1.4,zeta:.38,imuNoise:.42,bias:.28,qPrecision:.87,qRate:.42,gpsNoise:.18,speedSim:.52,visualY:.0,model:'tank'},
+  boat:{fa:'قایق',massKg:2500,isolatedKg:16,refSpeedKmh:45,gnssHz:5,imuHz:100,vibHz:10,vibG:.04,fn:1.3,zeta:.34,imuNoise:.22,bias:.14,qPrecision:.89,qRate:.52,gpsNoise:.13,speedSim:.38,visualY:.0,model:'boat'},
+  frigate:{fa:'ناوچه',massKg:3500000,isolatedKg:80,refSpeedKmh:45,gnssHz:5,imuHz:100,vibHz:6,vibG:.025,fn:.75,zeta:.42,imuNoise:.20,bias:.11,qPrecision:.94,qRate:.48,gpsNoise:.12,speedSim:.38,visualY:.0,model:'frigate'},
+  ship:{fa:'ناو',massKg:8000000,isolatedKg:120,refSpeedKmh:30,gnssHz:5,imuHz:100,vibHz:4,vibG:.018,fn:.55,zeta:.46,imuNoise:.18,bias:.09,qPrecision:.95,qRate:.44,gpsNoise:.12,speedSim:.30,visualY:.0,model:'ship'},
+};
+const PLATFORM_BUILDERS = {helicopter:buildHelicopter,airplane:buildAirplane,car:buildCar,tank:buildTank,boat:buildBoat,frigate:buildFrigate,ship:buildShip};
+const originalDroneParts=[...drone.children];
+const platformModels={};
+for(const [key,builder] of Object.entries(PLATFORM_BUILDERS)){
+  const m=builder(); m.visible=false; platformModels[key]=m; drone.add(m);
+}
+let activePlatformKey='drone';
+let activePlatformProfile=PLATFORM_PROFILES.drone;
+function switchPlatform(key){
+  if(!PLATFORM_PROFILES[key]) key='drone';
+  Object.values(platformModels).forEach(m=>m.visible=false);
+  originalDroneParts.forEach(m=>m.visible=(key==='drone'));
+  activePlatformKey=key;
+  activePlatformProfile=PLATFORM_PROFILES[key];
+  if(key!=='drone') platformModels[key].visible=true;
+  drone.position.y=activePlatformProfile.visualY;
+  const sel=document.getElementById('platformSelect'); if(sel) sel.value=key;
+  const m=document.getElementById('ptMass'), sp=document.getElementById('ptSpeed'), vb=document.getElementById('ptVib'), gn=document.getElementById('ptGnss');
+  if(m) m.textContent=activePlatformProfile.massKg>=1e6?(activePlatformProfile.massKg/1e6).toFixed(2)+' t':activePlatformProfile.massKg>=1000?(activePlatformProfile.massKg/1000).toFixed(1)+' t':activePlatformProfile.massKg.toFixed(1)+' kg';
+  if(sp) sp.textContent=activePlatformProfile.refSpeedKmh.toFixed(0)+' km/h';
+  if(vb) vb.textContent=activePlatformProfile.vibHz.toFixed(activePlatformProfile.vibHz<10?1:0)+' Hz';
+  if(gn) gn.textContent=activePlatformProfile.gnssHz+' Hz';
+  resetSim();
+  if(document.getElementById('platformAuto')?.checked) applyPlatformAuto();
+}
+
+function makeMarker(colorHex, radius){
+  const g = new THREE.Group();
+  const core = new THREE.Mesh(new THREE.SphereGeometry(radius,16,16), new THREE.MeshBasicMaterial({color:colorHex}));
+  g.add(core);
+  const glow = makeGlowSprite(colorHex, radius*7);
+  g.add(glow);
+  return g;
+}
+const imuMarker = makeMarker('#ff5d6c', 0.5); scene.add(imuMarker);
+const gpsMarker = makeMarker('#f5a623', 0.5); scene.add(gpsMarker);
+const fusedMarker = makeMarker('#4be8de', 0.62); scene.add(fusedMarker);
+
+const MAX_TRAIL = 240;
+function makeTrail(colorHex, opacity){
+  const geo = new THREE.BufferGeometry();
+  const positions = new Float32Array(MAX_TRAIL*3);
+  geo.setAttribute('position', new THREE.BufferAttribute(positions,3));
+  geo.setDrawRange(0,0);
+  const mat = new THREE.LineBasicMaterial({color:colorHex, transparent:true, opacity});
+  const line = new THREE.Line(geo, mat);
+  line.userData.buf = [];
+  return line;
+}
+const trailTrue = makeTrail(0x4b5a72, 0.9); scene.add(trailTrue);
+const trailImu = makeTrail(0xff5d6c, 0.6); scene.add(trailImu);
+const trailGps = makeTrail(0xf5a623, 0.55); scene.add(trailGps);
+const trailFused = makeTrail(0x4be8de, 0.95); scene.add(trailFused);
+
+function pushTrail(line, x, z, y){
+  const buf = line.userData.buf;
+  buf.push(x,y,z);
+  if(buf.length > MAX_TRAIL*3) buf.splice(0, 3);
+  const posAttr = line.geometry.attributes.position;
+  posAttr.array.set(buf, 0);
+  posAttr.needsUpdate = true;
+  line.geometry.setDrawRange(0, buf.length/3);
+  line.geometry.computeBoundingSphere();
+}
+function resetTrail(line){ line.userData.buf = []; line.geometry.setDrawRange(0,0); }
+
+let waypointMeshes = [];
+function clearWaypointMeshes(){ waypointMeshes.forEach(m=>scene.remove(m)); waypointMeshes=[]; }
+
+const beams = [];
+function spawnBeam(fromV, toV, colorHex, life){
+  const geo = new THREE.BufferGeometry().setFromPoints([fromV, toV]);
+  const mat = new THREE.LineBasicMaterial({color:colorHex, transparent:true, opacity:0.9});
+  const line = new THREE.Line(geo, mat);
+  scene.add(line);
+  beams.push({line, t:0, life});
+}
+const gpsSatPos = new THREE.Vector3(-40, 55, -20);
+const quantumSatPos = new THREE.Vector3(40, 55, -10);
+[ [gpsSatPos,0xf5a623], [quantumSatPos,0x4be8de] ].forEach(([p,c])=>{
+  const s = makeMarker('#'+c.toString(16).padStart(6,'0'), 1.3);
+  s.position.copy(p);
+  scene.add(s);
+});
+
+/* ============ PATH GENERATION ============ */
+function genCircle(){
+  const pts=[]; const r=55;
+  for(let i=0;i<28;i++){ const a=(i/28)*Math.PI*2; pts.push(new THREE.Vector3(r*Math.cos(a), 0, r*Math.sin(a)*0.8)); }
+  return pts;
+}
+function genZigzag(){
+  const pts=[]; const n=6;
+  for(let i=0;i<=n;i++){ pts.push(new THREE.Vector3(-70 + i*(140/n), 0, (i%2===0?-40:40))); }
+  return pts;
+}
+function genWeave(){
+  const pts=[];
+  for(let i=0;i<20;i++){
+    const a = (i/20)*Math.PI*2;
+    const r = 45 + 15*Math.sin(a*4);
+    pts.push(new THREE.Vector3(r*Math.cos(a), 0, r*Math.sin(a)));
+  }
+  return pts;
+}
+function currentPathPts(){
+  if(params.pathMode==='circle') return genCircle();
+  if(params.pathMode==='zigzag') return genZigzag();
+  if(params.pathMode==='weave') return genWeave();
+  return customWaypoints;
+}
+function pathLenInfo(pts){
+  let total=0; const segs=[];
+  for(let i=0;i<pts.length;i++){
+    const a=pts[i], b=pts[(i+1)%pts.length];
+    const d=a.distanceTo(b); segs.push(d); total+=d;
+  }
+  return {total,segs};
+}
+function pointOnPath(pts, dist){
+  if(pts.length<2) return {pos:(pts[0]||new THREE.Vector3()).clone(), angle:0};
+  const {total,segs} = pathLenInfo(pts);
+  if(total===0) return {pos:pts[0].clone(), angle:0};
+  let d = ((dist%total)+total)%total;
+  for(let i=0;i<pts.length;i++){
+    const segLen = segs[i];
+    if(d<=segLen || i===pts.length-1){
+      const a=pts[i], b=pts[(i+1)%pts.length];
+      const t = segLen===0?0:d/segLen;
+      const pos = new THREE.Vector3().lerpVectors(a,b,t);
+      const angle = Math.atan2(b.x-a.x, b.z-a.z);
+      return {pos, angle};
+    }
+    d -= segLen;
+  }
+  return {pos:pts[0].clone(), angle:0};
+}
+function gauss(){ let u=0,v=0; while(u===0)u=Math.random(); while(v===0)v=Math.random(); return Math.sqrt(-2*Math.log(u))*Math.cos(2*Math.PI*v); }
+
+/* ============ SIM STATE ============ */
+let sim = {
+  dist:0, t:0, frame:0,
+  truePos:new THREE.Vector3(), imuPos:new THREE.Vector3(), fusedPos:new THREE.Vector3(), gpsPos:new THREE.Vector3(),
+  bias:new THREE.Vector3(),
+};
+let errHist = [];
+
+function resetSim(){
+  const pts = currentPathPts();
+  const start = pts[0] ? pts[0].clone() : new THREE.Vector3();
+  sim = { dist:0, t:0, frame:0,
+    truePos:start.clone(), imuPos:start.clone(), fusedPos:start.clone(), gpsPos:start.clone(),
+    bias:new THREE.Vector3() };
+  [trailTrue,trailImu,trailGps,trailFused].forEach(resetTrail);
+  errHist = [];
+  updateChart(true);
+}
+
+/* ============ QUANTUM HUD ============ */
+const qCanvas = document.getElementById('qCanvas');
+const qCtx = qCanvas.getContext('2d');
+let qFlash = 0;
+function drawQuantumHud(time){
+  const W=150,H=150; qCtx.clearRect(0,0,W,H);
+  const cx=W/2, cy=H/2-6;
+  const cyc = (time*0.0016)%1;
+  const split = Math.sin(cyc*Math.PI);
+  qCtx.save();
+  qCtx.strokeStyle = 'rgba(75,232,222,'+(0.5+qFlash*0.5)+')';
+  qCtx.lineWidth = 1.6;
+  qCtx.beginPath(); qCtx.moveTo(cx-40,cy); qCtx.quadraticCurveTo(cx, cy-28*split-6, cx+40, cy); qCtx.stroke();
+  qCtx.beginPath(); qCtx.moveTo(cx-40,cy); qCtx.quadraticCurveTo(cx, cy+28*split+6, cx+40, cy); qCtx.stroke();
+  const grad = qCtx.createRadialGradient(cx,cy,0,cx,cy,50);
+  grad.addColorStop(0, 'rgba(75,232,222,'+(0.12+qFlash*0.5)+')');
+  grad.addColorStop(1,'rgba(75,232,222,0)');
+  qCtx.fillStyle = grad; qCtx.beginPath(); qCtx.arc(cx,cy,50,0,7); qCtx.fill();
+  qCtx.fillStyle = '#eef3fb';
+  qCtx.beginPath(); qCtx.arc(cx-40,cy,4,0,7); qCtx.fill();
+  qCtx.beginPath(); qCtx.arc(cx+40,cy,4,0,7); qCtx.fill();
+  qCtx.fillStyle = '#4be8de';
+  const px = cx-40 + 80*cyc;
+  qCtx.beginPath(); qCtx.arc(px, cy - Math.sin(cyc*2*Math.PI)*24*Math.min(1,cyc*4)*Math.min(1,(1-cyc)*4), 3.5,0,7); qCtx.fill();
+  qCtx.restore();
+  qFlash *= 0.9;
+}
+
+/* ============ CHART ============ */
+const chartCtx = document.getElementById('errChart').getContext('2d');
+const chart = new Chart(chartCtx, {
+  type:'line',
+  data:{ labels:[], datasets:[
+    {label:'درونی', data:[], borderColor:'#ff5d6c', pointRadius:0, borderWidth:1.4, tension:0.3},
+    {label:'ماهواره‌ای', data:[], borderColor:'#f5a623', pointRadius:0, borderWidth:1.2, tension:0.3, spanGaps:false},
+    {label:'ترکیبی', data:[], borderColor:'#4be8de', pointRadius:0, borderWidth:2, tension:0.3},
+  ]},
+  options:{
+    responsive:true, maintainAspectRatio:false, animation:false,
+    plugins:{ legend:{display:false}, tooltip:{enabled:false} },
+    scales:{ x:{display:false}, y:{ticks:{color:'#6a7791', font:{size:9}}, grid:{color:'#152036'}} },
+  }
+});
+function updateChart(clear){
+  if(clear){ chart.data.labels=[]; chart.data.datasets.forEach(d=>d.data=[]); chart.update(); return; }
+  chart.data.labels = errHist.map(h=>h.t);
+  chart.data.datasets[0].data = errHist.map(h=>h.imu);
+  chart.data.datasets[1].data = errHist.map(h=>h.gps);
+  chart.data.datasets[2].data = errHist.map(h=>h.fused);
+  chart.update('none');
+}
+
+/* ============ CAMERA (with multi-touch support) ============ */
+let camAngle = 0.9, camElev = 0.55, camDist = 155, autoRotate = true, lastInteract = Date.now();
+let dragging = false, lastX = 0, lastY = 0;
+let pointerDownPos = null;
+const activePointers = new Map();
+let pinchStartDist = 0;
+let pinchStartCamDist = 0;
+
+function updateCamDistByPinch(){
+  const pts = [...activePointers.values()];
+  if(pts.length !== 2) return;
+  const d = Math.hypot(pts[0].x - pts[1].x, pts[0].y - pts[1].y);
+  if(pinchStartDist > 0){
+    camDist = Math.min(320, Math.max(40, pinchStartCamDist * (pinchStartDist / d)));
+  }
+}
+
+renderer.domElement.addEventListener('pointerdown', e => {
+  activePointers.set(e.pointerId, { x: e.clientX, y: e.clientY });
+  if(activePointers.size === 1){
+    pointerDownPos = { x: e.clientX, y: e.clientY };
+    dragging = true;
+    lastX = e.clientX; lastY = e.clientY;
+    autoRotate = false;
+    lastInteract = Date.now();
+    try { renderer.domElement.setPointerCapture(e.pointerId); } catch(err){}
+  } else if(activePointers.size === 2){
+    const pts = [...activePointers.values()];
+    pinchStartDist = Math.hypot(pts[0].x - pts[1].x, pts[0].y - pts[1].y);
+    pinchStartCamDist = camDist;
+    dragging = false;
+  }
+});
+
+window.addEventListener('pointermove', e => {
+  if(!activePointers.has(e.pointerId)) return;
+  activePointers.set(e.pointerId, { x: e.clientX, y: e.clientY });
+  if(activePointers.size === 2){
+    updateCamDistByPinch();
+    return;
+  }
+  if(!dragging) return;
+  camAngle -= (e.clientX - lastX) * 0.005;
+  camElev = Math.min(1.4, Math.max(0.15, camElev + (e.clientY - lastY) * 0.004));
+  lastX = e.clientX; lastY = e.clientY;
+  lastInteract = Date.now();
+});
+
+window.addEventListener('pointerup', e => {
+  activePointers.delete(e.pointerId);
+  if(activePointers.size < 2) pinchStartDist = 0;
+  if(activePointers.size === 0) dragging = false;
+});
+
+window.addEventListener('pointercancel', e => {
+  activePointers.delete(e.pointerId);
+  if(activePointers.size < 2) pinchStartDist = 0;
+  if(activePointers.size === 0) dragging = false;
+});
+
+renderer.domElement.addEventListener('wheel', e=>{
+  camDist = Math.min(320, Math.max(40, camDist + e.deltaY*0.08));
+  lastInteract = Date.now();
+}, {passive:true});
+
+function updateCamera(dt){
+  if(!dragging && Date.now()-lastInteract > 4000) autoRotate = true;
+  if(autoRotate) camAngle += dt*0.06;
+  const x = camDist*Math.cos(camElev)*Math.sin(camAngle);
+  const z = camDist*Math.cos(camElev)*Math.cos(camAngle);
+  const y = camDist*Math.sin(camElev)+8;
+  camera.position.set(x,y,z);
+  camera.lookAt(0,3,0);
+}
+
+/* ============ RAYCAST (tap-to-place) ============ */
+const raycaster = new THREE.Raycaster();
+const mouse = new THREE.Vector2();
+renderer.domElement.addEventListener('click', (e)=>{
+  if(params.pathMode!=='custom') return;
+  // Filter out drags (that just rotated the camera)
+  if(pointerDownPos){
+    const dx = e.clientX - pointerDownPos.x;
+    const dy = e.clientY - pointerDownPos.y;
+    if(Math.hypot(dx, dy) > 8) return;
+  }
+  mouse.x = (e.clientX/window.innerWidth)*2-1;
+  mouse.y = -(e.clientY/window.innerHeight)*2+1;
+  raycaster.setFromCamera(mouse, camera);
+  const hit = raycaster.intersectObject(groundMesh)[0];
+  if(hit){
+    const p = new THREE.Vector3(hit.point.x, 0, hit.point.z);
+    customWaypoints.push(p);
+    const wp = new THREE.Mesh(new THREE.ConeGeometry(1,2.4,10), new THREE.MeshStandardMaterial({color:0x3b4a66, emissive:0x223344}));
+    wp.position.copy(p); wp.position.y=1.2;
+    scene.add(wp); waypointMeshes.push(wp);
+    if(customWaypoints.length===1) resetSim();
+  }
+});
+
+function handleResize(){
+  camera.aspect = window.innerWidth/window.innerHeight;
+  camera.updateProjectionMatrix();
+  renderer.setSize(window.innerWidth, window.innerHeight);
+  renderer.setPixelRatio(Math.min(devicePixelRatio, 2));
+}
+window.addEventListener('resize', handleResize);
+window.addEventListener('orientationchange', () => setTimeout(handleResize, 200));
+
+/* =====================================================================
+   ========== VIBRATION DAMPER SYSTEM ==================================
+   ===================================================================== */
+
+const VIB = {
+  layer1: true, layer2: true,
+  ampG: 0.20, freq: 12.0, bwIn: 8.0, dir: 0, rand: 0.15,
+  fn: 3.0, zeta: 0.30, k: 120,
+  Kp: 0.70, Ki: 0.05, delay: 5.0, bw: 45, power: 0.50,
+  severity: 0.70,
+  phase: 0, l1out: 0, l2out: 0, rms: 0, att: 0, effGain: 0, instFreq: 12,
+  integral: 0,
+  events: [],
+  history: [], historyRaw: [], historyCap: 240,
+  log: [],
+  _outX: 0, _outZ: 0,
+  _warned: false,
+};
+
+const vibLab = document.getElementById('vibLab');
+
+(function addVibBtn(){
+  const topBtns = document.getElementById('topbtns');
+  const b = document.createElement('button');
+  b.id = 'vibBtn';
+  b.className = 'btn';
+  b.innerHTML = ICONS.shield + ' <span>لرزشگیر</span>';
+  topBtns.appendChild(b);
+  b.onclick = () => {
+    vibLab.classList.toggle('open');
+    if(vibLab.classList.contains('open')){
+      document.body.classList.remove('drawer-open');
+      document.getElementById('controlsBtn')?.classList.remove('active');
+    }
+  };
+})();
+document.getElementById('vibClose').onclick = () => vibLab.classList.remove('open');
+
+function bindSwitch(swId, boxId, key){
+  const sw = document.getElementById(swId);
+  const box = document.getElementById(boxId);
+  sw.onclick = () => {
+    VIB[key] = !VIB[key];
+    sw.classList.toggle('on', VIB[key]);
+    box.classList.toggle('on', VIB[key]);
+    updateVibModeBadge();
+    addVibLog('سامانه', `لایه ${key==='layer1'?'اول':'دوم'} ${VIB[key]?'فعال':'غیرفعال'} شد`, VIB[key]?'row-ok':'row-al');
+  };
+}
+bindSwitch('layer1Sw','layer1Box','layer1');
+bindSwitch('layer2Sw','layer2Box','layer2');
+
+function updateVibModeBadge(){
+  const badge = document.getElementById('vlMode');
+  const l1 = VIB.layer1, l2 = VIB.layer2;
+  if(l1 && l2){ badge.textContent='غیرفعال + فعال'; badge.className='vl-badge on'; }
+  else if(l1){ badge.textContent='فقط غیرفعال'; badge.className='vl-badge'; }
+  else if(l2){ badge.textContent='فقط فعال'; badge.className='vl-badge'; }
+  else { badge.textContent='خاموش'; badge.className='vl-badge off'; }
+  document.getElementById('layer1Params').style.opacity = l1 ? 1 : 0.4;
+  document.getElementById('layer2Params').style.opacity = l2 ? 1 : 0.4;
+}
+updateVibModeBadge();
+
+function bindSlider(id, labelId, key, fmt, suffix=''){
+  const input = document.getElementById(id);
+  const label = document.getElementById(labelId);
+  const update = () => {
+    VIB[key] = parseFloat(input.value);
+    label.textContent = fmt(VIB[key]) + suffix;
+  };
+  input.addEventListener('input', update);
+  update();
+}
+bindSlider('vAmp','vvAmp','ampG', v=>v.toFixed(2), '');
+bindSlider('vFreq','vvFreq','freq', v=>v.toFixed(1), '');
+bindSlider('vBwIn','vvBwIn','bwIn', v=>v.toFixed(1), '');
+bindSlider('vDir','vvDir','dir', v=>v.toFixed(0), ' درجه');
+bindSlider('vRand','vvRand','rand', v=>(v*100).toFixed(0), '%');
+bindSlider('vFn','vvFn','fn', v=>v.toFixed(1), '');
+bindSlider('vZeta','vvZeta','zeta', v=>v.toFixed(2), '');
+bindSlider('vK','vvK','k', v=>v.toFixed(0), '');
+bindSlider('vKp','vvKp','Kp', v=>v.toFixed(2), '');
+bindSlider('vKi','vvKi','Ki', v=>v.toFixed(2), '');
+bindSlider('vDelay','vvDelay','delay', v=>v.toFixed(1), '');
+bindSlider('vBw','vvBw','bw', v=>v.toFixed(0), '');
+bindSlider('vPower','vvPower','power', v=>v.toFixed(2), '');
+bindSlider('vSeverity','vvSev','severity', v=>(v*100).toFixed(0), '%');
+
+function setSliderValue(id,value){
+  const input=document.getElementById(id); if(!input) return;
+  const min=parseFloat(input.min), max=parseFloat(input.max);
+  input.value=String(Math.min(max,Math.max(min,value)));
+  input.dispatchEvent(new Event('input',{bubbles:true}));
+}
+function applyPlatformAuto(){
+  const pr=activePlatformProfile;
+  setSliderValue('speed',pr.speedSim);
+  setSliderValue('imuNoise',pr.imuNoise);
+  setSliderValue('biasDrift',pr.bias);
+  setSliderValue('qPrecision',pr.qPrecision);
+  setSliderValue('qRate',pr.qRate);
+  setSliderValue('gpsNoise',pr.gpsNoise);
+  setSliderValue('vFreq',pr.vibHz);
+  setSliderValue('vAmp',pr.vibG);
+  setSliderValue('vFn',pr.fn);
+  setSliderValue('vZeta',pr.zeta);
+  const kKnM=(pr.isolatedKg*Math.pow(2*Math.PI*pr.fn,2))/1000;
+  setSliderValue('vK',kKnM);
+  setSliderValue('vBwIn',Math.max(0.5,pr.vibHz*0.35));
+  setSliderValue('vBw',Math.max(5,pr.vibHz*1.8));
+  setSliderValue('vKp',Math.min(2,0.55+pr.qPrecision*0.25));
+  setSliderValue('vKi',Math.min(1,0.02+pr.zeta*0.08));
+  setSliderValue('vDelay',Math.min(50,Math.max(1,1000/(Math.max(10,pr.imuHz)))));
+  setSliderValue('vPower',Math.min(3,Math.max(.15,pr.vibG*4+0.2)));
+}
+function updatePlatformAutoBadge(){
+  const cb=document.getElementById('platformAuto'), badge=document.getElementById('platformAutoBadge');
+  if(!cb||!badge) return;
+  badge.textContent=cb.checked?'تنظیم خودکار: فعال':'تنظیم خودکار: خاموش';
+  badge.className='pt-badge '+(cb.checked?'on':'');
+}
+document.getElementById('platformSelect').addEventListener('change',e=>switchPlatform(e.target.value));
+document.getElementById('platformAuto').addEventListener('change',()=>{
+  updatePlatformAutoBadge();
+  if(document.getElementById('platformAuto').checked) applyPlatformAuto();
+});
+switchPlatform('drone');
+
+const EVENTS = {
+  earthquake:{ fa:'زلزله',      ampG:1.2,  freq:2.2,  bw:2.5,  decay:0.35, color:'#ff5d6c' },
+  wind:      { fa:'باد شدید',    ampG:0.15, freq:0.6,  bw:0.8,  decay:0.6,  color:'#4be8de' },
+  turbulence:{ fa:'تلاطم هوا',  ampG:0.4,  freq:8.5,  bw:6,    decay:0.5,  color:'#f5a623' },
+  motor:     { fa:'ارتعاش موتور',ampG:0.08, freq:38,   bw:4,    decay:0.15, color:'#eef3fb' },
+  impact:    { fa:'ضربه ناگهانی',ampG:6.0,  freq:15,   bw:20,   decay:1.4,  color:'#ff5d6c' },
+  resonance: { fa:'هم‌فرکانسی',  ampG:0.9,  freq:3.0,  bw:0.5,  decay:1.1,  color:'#a855f7' },
+  sandstorm: { fa:'طوفان شن',   ampG:0.35, freq:1.2,  bw:1.5,  decay:1.6,  color:'#d97706' },
+  gunfire:   { fa:'شلیک توپ',   ampG:4.5,  freq:60,   bw:40,   decay:0.8,  color:'#ff8a3d' },
+};
+
+document.querySelectorAll('.vl-ev').forEach(btn=>{
+  btn.onclick = () => startEvent(btn.dataset.ev, btn);
+});
+
+function startEvent(key, btn){
+  const cfg = EVENTS[key];
+  if(!cfg) return;
+  const existing = VIB.events.find(e=>e.key===key);
+  if(existing){
+    VIB.events = VIB.events.filter(e=>e.key!==key);
+    btn.classList.remove('active');
+    addVibLog('رخداد', `پایان ${cfg.fa}`, 'row-ok');
+    return;
+  }
+  VIB.events.push({
+    key, fa: cfg.fa, color: cfg.color,
+    t: 0, life: 6 + cfg.decay*4,
+    ampG: cfg.ampG * VIB.severity,
+    freq: cfg.freq, bw: cfg.bw,
+    decay: cfg.decay,
+  });
+  btn.classList.add('active');
+  addVibLog('رخداد', `شروع ${cfg.fa} (${(VIB.severity*100).toFixed(0)}% شدت)`, 'row-ev');
+  spawnVibRing(cfg.color);
+}
+
+document.getElementById('vibRun').onclick = () => {
+  const keys = Object.keys(EVENTS);
+  const k = keys[Math.floor(Math.random()*keys.length)];
+  const btn = document.querySelector(`.vl-ev[data-ev="${k}"]`);
+  startEvent(k, btn);
+};
+document.getElementById('vibStop').onclick = () => {
+  VIB.events = [];
+  document.querySelectorAll('.vl-ev').forEach(b=>b.classList.remove('active'));
+  addVibLog('سامانه', 'همه رخدادها متوقف شدند', 'row-al');
+};
+
+function addVibLog(tag, msg, cls=''){
+  VIB.log.push({tag, msg, cls, t: performance.now()});
+  if(VIB.log.length>40) VIB.log.shift();
+  const el = document.getElementById('vibLog');
+  if(!el) return;
+  el.innerHTML = VIB.log.slice().reverse().map(l=>{
+    return `<div class="${l.cls}">[${l.tag}] ${l.msg}</div>`;
+  }).join('');
+}
+
+const vibRings = [];
+function spawnVibRing(colorHex){
+  const geo = new THREE.RingGeometry(1, 1.4, 48);
+  const mat = new THREE.MeshBasicMaterial({color:colorHex, transparent:true, opacity:0.85, side:THREE.DoubleSide, depthWrite:false});
+  const ring = new THREE.Mesh(geo, mat);
+  ring.rotation.x = -Math.PI/2;
+  ring.position.set(sim.truePos.x, 0.4, sim.truePos.z);
+  scene.add(ring);
+  vibRings.push({ring, t:0, life:60});
+}
+
+function transmissibility(f, fn, zeta){
+  const r = f / Math.max(1e-3, fn);
+  const r2 = r*r;
+  const num = 1 + Math.pow(2*zeta*r, 2);
+  const den = Math.pow(1 - r2, 2) + Math.pow(2*zeta*r, 2);
+  return Math.sqrt(num / Math.max(1e-9, den));
+}
+function psdOf(ampG, bw){ return (ampG*ampG) / Math.max(0.1, bw); }
+function rmsResponse(f0, bw, ampG, fn, zeta){
+  const S = psdOf(ampG, bw);
+  const N = 64;
+  const fLo = Math.max(0.05, f0 - bw/2);
+  const fHi = f0 + bw/2;
+  const df = (fHi - fLo)/N;
+  let sum = 0;
+  for(let i=0;i<N;i++){
+    const f = fLo + (i+0.5)*df;
+    const T = transmissibility(f, fn, zeta);
+    sum += T*T * S * df;
+  }
+  return Math.sqrt(Math.max(0, sum));
+}
+function activeGain(f, bwCtl, Kp, Ki, delayMs, power){
+  const bwMatch = Math.exp(-Math.pow((f - bwCtl)/Math.max(1,bwCtl), 2) * 0.5);
+  const delayRad = 2*Math.PI*f*(delayMs/1000);
+  const delayLoss = 1 / (1 + Math.pow(delayRad, 2) * 0.05);
+  const powerFactor = Math.min(1, power / 0.5);
+  const piFactor = 1 + 0.2*Math.min(1, Ki*10);
+  return Kp * bwMatch * delayLoss * powerFactor * piFactor;
+}
+
+function updateVibration(dt, time){
+  const dirRad = VIB.dir * Math.PI/180;
+  const dirX = Math.cos(dirRad);
+  const dirZ = Math.sin(dirRad);
+
+  let eventAmpG = 0, eventFreq = VIB.freq, eventBw = VIB.bwIn;
+  let dom = null;
+  for(let i=VIB.events.length-1;i>=0;i--){
+    const e = VIB.events[i];
+    e.t += dt;
+    const remain = 1 - e.t/e.life;
+    if(remain <= 0){
+      const btn = document.querySelector(`.vl-ev[data-ev="${e.key}"]`);
+      if(btn) btn.classList.remove('active');
+      addVibLog('رخداد', `پایان ${e.fa}`, 'row-ok');
+      VIB.events.splice(i,1);
+      continue;
+    }
+    const env = Math.pow(remain, e.decay);
+    const a = e.ampG * env * VIB.severity;
+    if(a > eventAmpG){
+      eventAmpG = a; dom = e;
+      eventFreq = e.freq;
+      eventBw = e.bw;
+    }
+  }
+
+  const useFreq = dom ? dom.freq : VIB.freq;
+  const useBw = dom ? dom.bw : VIB.bwIn;
+  const totalAmpG = VIB.ampG + eventAmpG;
+  VIB.instFreq = useFreq;
+  VIB.phase += dt * useFreq * 2 * Math.PI;
+
+  const randAmt = VIB.rand * totalAmpG * 0.4;
+  const scaleMM = 10;
+  const rawX = (Math.sin(VIB.phase) * totalAmpG * scaleMM + (Math.random()-0.5)*randAmt*scaleMM) * dirX;
+  const rawZ = (Math.sin(VIB.phase*0.83 + 1.3) * totalAmpG * scaleMM * 0.85 + (Math.random()-0.5)*randAmt*scaleMM) * dirZ;
+  const rawMag = Math.sqrt(rawX*rawX + rawZ*rawZ);
+
+  let l1Mag, l1x, l1z;
+  const Ttheory = transmissibility(useFreq, VIB.fn, VIB.zeta);
+  if(VIB.layer1){
+    const rmsOut = rmsResponse(useFreq, useBw, totalAmpG, VIB.fn, VIB.zeta);
+    const factor = Math.max(0.001, rmsOut / Math.max(0.001, totalAmpG));
+    l1x = rawX * factor;
+    l1z = rawZ * factor;
+    l1Mag = Math.sqrt(l1x*l1x + l1z*l1z);
+    VIB.l1out = rmsOut;
+  } else {
+    l1x = rawX; l1z = rawZ;
+    l1Mag = rawMag;
+    VIB.l1out = totalAmpG;
+  }
+
+  let outX = l1x, outZ = l1z;
+  if(VIB.layer2){
+    const eff = Math.min(1.5, activeGain(useFreq, VIB.bw, VIB.Kp, VIB.Ki, VIB.delay, VIB.power));
+    VIB.effGain = eff;
+    const atten = Math.max(0, 1 - eff);
+    VIB.integral += l1Mag * dt * VIB.Ki;
+    VIB.integral *= 0.98;
+    const integralCorrection = Math.min(0.3, VIB.integral*0.01);
+    outX = l1x * atten * (1 - integralCorrection);
+    outZ = l1z * atten * (1 - integralCorrection);
+    VIB.l2out = Math.sqrt(outX*outX + outZ*outZ) / scaleMM * (totalAmpG / Math.max(0.001, l1Mag/scaleMM));
+    VIB.l2out = Math.max(0, VIB.l2out);
+  } else {
+    VIB.effGain = 0;
+    VIB.l2out = VIB.l1out;
+  }
+
+  const outMag = Math.sqrt(outX*outX + outZ*outZ);
+  VIB.rms = (outMag / Math.max(0.001, scaleMM));
+  const inRms = Math.max(0.001, totalAmpG);
+  VIB.att = 20 * Math.log10(inRms / Math.max(0.001, VIB.rms));
+
+  VIB.history.push(VIB.rms);
+  VIB.historyRaw.push(totalAmpG);
+  if(VIB.history.length > VIB.historyCap) VIB.history.shift();
+  if(VIB.historyRaw.length > VIB.historyCap) VIB.historyRaw.shift();
+
+  VIB._outX = (outX / scaleMM) * 0.4;
+  VIB._outZ = (outZ / scaleMM) * 0.4;
+  VIB._Ttheory = Ttheory;
+
+  if(VIB.layer1 && Math.abs(useFreq - VIB.fn)/Math.max(0.1,VIB.fn) < 0.15 && useFreq>0.5){
+    if(!VIB._warned){
+      addVibLog('هشدار', `هم‌فرکانسی در ${useFreq.toFixed(1)} هرتز`, 'row-al');
+      VIB._warned = true;
+      setTimeout(()=>{ VIB._warned=false; }, 3000);
+    }
+  }
+}
+
+const vibWaveCv = document.getElementById('vibWave');
+const vibWaveCtx = vibWaveCv.getContext('2d');
+function drawVibWave(){
+  const cv = vibWaveCv, ctx = vibWaveCtx;
+  const w = cv.clientWidth, h = cv.clientHeight;
+  if(cv.width !== w*devicePixelRatio){
+    cv.width = w*devicePixelRatio;
+    cv.height = h*devicePixelRatio;
+  }
+  ctx.setTransform(devicePixelRatio,0,0,devicePixelRatio,0,0);
+  ctx.clearRect(0,0,w,h);
+
+  ctx.strokeStyle = 'rgba(167,139,250,0.08)';
+  ctx.lineWidth = 1;
+  for(let y=12; y<h; y+=14){ ctx.beginPath(); ctx.moveTo(0,y); ctx.lineTo(w,y); ctx.stroke(); }
+
+  const mid = h/2;
+  const maxG = Math.max(1, Math.max(...VIB.historyRaw, ...VIB.history));
+  const scale = (h*0.42) / maxG;
+
+  ctx.strokeStyle = 'rgba(255,93,108,.5)';
+  ctx.lineWidth = 1;
+  ctx.beginPath();
+  const raw = VIB.historyRaw;
+  for(let i=0;i<raw.length;i++){
+    const x = (i/(VIB.historyCap-1))*w;
+    const y = mid - Math.sin(i*0.35) * raw[i] * scale * 0.5;
+    if(i===0) ctx.moveTo(x,y); else ctx.lineTo(x,y);
+  }
+  ctx.stroke();
+
+  ctx.strokeStyle = '#a78bfa';
+  ctx.lineWidth = 1.8;
+  ctx.beginPath();
+  const dat = VIB.history;
+  for(let i=0;i<dat.length;i++){
+    const x = (i/(VIB.historyCap-1))*w;
+    const y = mid - Math.sin(i*0.35) * dat[i] * scale;
+    if(i===0) ctx.moveTo(x,y); else ctx.lineTo(x,y);
+  }
+  ctx.stroke();
+
+  ctx.fillStyle = 'rgba(255,93,108,0.8)';
+  ctx.font = '10px Vazirmatn, sans-serif';
+  ctx.fillText('ورودی', 6, 12);
+  ctx.fillStyle = '#a78bfa';
+  ctx.fillText('خروجی', w-42, 12);
+}
+
+function refreshVibMetrics(){
+  document.getElementById('vmRms').textContent = VIB.rms.toFixed(2);
+  document.getElementById('vmAtt').textContent = VIB.att.toFixed(1);
+  document.getElementById('vmL1').textContent = VIB.l1out.toFixed(2);
+  document.getElementById('vmL2').textContent = VIB.l2out.toFixed(2);
+  document.getElementById('vmFreq').textContent = VIB.instFreq.toFixed(1)+' هرتز';
+  document.getElementById('vmEff').textContent = VIB.effGain.toFixed(2);
+  const T = VIB._Ttheory || 1;
+  document.getElementById('vmTf').textContent = T.toFixed(2);
+  document.getElementById('vmT0').textContent = transmissibility(VIB.fn, VIB.fn, VIB.zeta).toFixed(2);
+  const att0 = 20*Math.log10(1/Math.max(0.001, transmissibility(VIB.fn, VIB.fn, VIB.zeta)));
+  document.getElementById('vmAtt0').textContent = att0.toFixed(1);
+  const r = VIB.instFreq / Math.max(0.1, VIB.fn);
+  document.getElementById('vmRes').textContent = r.toFixed(2) + ' برابر';
+}
+
+/* =====================================================================
+   ========== MILITARY / EW SIMULATION ==================================
+   ===================================================================== */
+
+const MIL = {
+  Pj: 10, Gj: 6, Rj: 500, Bj: 2, jtype: 'wide',
+  Pt: 100, Gradar: 35, Fr: 9.5, Rcs: 0.05,
+  severity: 0.70,
+  events: [],
+  log: [],
+  JS: 0, burn: 0, CN: 0, PE: 0,
+  radarRange: 0, threatLevel: 'کم', tti: 999,
+  linkIntegrity: 1.0, authFailures: 0, packetLoss: 0, tamper: 0,
+  spectrum: new Array(128).fill(0),
+  jammingActive: false,
+  spoofActive: false,
+  empActive: false,
+  radarLock: false,
+  missileActive: false,
+  laserActive: false,
+};
+
+const milLab = document.getElementById('milLab');
+
+(function addMilBtn(){
+  const topBtns = document.getElementById('topbtns');
+  const b = document.createElement('button');
+  b.id = 'milBtn';
+  b.className = 'btn';
+  b.innerHTML = ICONS.sword + ' <span>جنگ الکترونیک</span>';
+  topBtns.appendChild(b);
+  b.onclick = () => {
+    milLab.classList.toggle('open');
+    if(milLab.classList.contains('open')){
+      vibLab.classList.remove('open');
+      document.body.classList.remove('drawer-open');
+      document.getElementById('controlsBtn')?.classList.remove('active');
+    }
+  };
+})();
+document.getElementById('milClose').onclick = () => milLab.classList.remove('open');
+
+document.querySelectorAll('.ml-tab').forEach(tab => {
+  tab.onclick = () => {
+    document.querySelectorAll('.ml-tab').forEach(t=>t.classList.remove('active'));
+    document.querySelectorAll('.ml-tabpane').forEach(p=>p.classList.remove('active'));
+    tab.classList.add('active');
+    document.querySelector(`.ml-tabpane[data-pane="${tab.dataset.tab}"]`).classList.add('active');
+  };
+});
+
+function bindMilSlider(id, labelId, key, fmt, suffix=''){
+  const input = document.getElementById(id);
+  const label = document.getElementById(labelId);
+  const update = () => {
+    MIL[key] = parseFloat(input.value);
+    label.textContent = fmt(MIL[key]) + suffix;
+    recalcMil();
+  };
+  input.addEventListener('input', update);
+  update();
+}
+bindMilSlider('mPj','mvPj','Pj', v=>v.toFixed(1), '');
+bindMilSlider('mGj','mvGj','Gj', v=>v.toFixed(1), '');
+bindMilSlider('mRj','mvRj','Rj', v=>v.toFixed(0), '');
+bindMilSlider('mBj','mvBj','Bj', v=>v.toFixed(1), '');
+bindMilSlider('mPt','mvPt','Pt', v=>v.toFixed(0), '');
+bindMilSlider('mGradar','mvGradar','Gradar', v=>v.toFixed(1), '');
+bindMilSlider('mFr','mvFr','Fr', v=>v.toFixed(1), '');
+bindMilSlider('mRcs','mvRcs','Rcs', v=>v.toFixed(3), '');
+bindMilSlider('mSeverity','mvSev','severity', v=>(v*100).toFixed(0), '%');
+
+document.querySelectorAll('.ml-jtype').forEach(btn => {
+  btn.onclick = () => {
+    document.querySelectorAll('.ml-jtype').forEach(b=>b.classList.remove('active'));
+    btn.classList.add('active');
+    MIL.jtype = btn.dataset.jtype;
+    document.getElementById('mvJtype').textContent = btn.textContent;
+    addMilLog('اخلال', `نوع اخلال: ${btn.textContent}`, 'row-info');
+    recalcMil();
+  };
+});
+
+function computeJS(){
+  const fL1 = 1575.42e6;
+  const lambda = 3e8 / fL1;
+  const Ps_rx_dBW = -160;
+  const Grx = 3;
+  const Pj_W = Math.max(1e-6, MIL.Pj);
+  const Gj_lin = Math.pow(10, MIL.Gj/10);
+  const Grx_lin = Math.pow(10, Grx/10);
+  const Rj = Math.max(1, MIL.Rj);
+  const J = Pj_W * Gj_lin * (lambda*lambda) / (Math.pow(4*Math.PI, 2) * Rj*Rj) * Grx_lin;
+  const S = Math.pow(10, Ps_rx_dBW/10);
+  let js = 10*Math.log10(J/S);
+  if(MIL.jtype==='narrow') js += 6;
+  if(MIL.jtype==='sweep') js -= 3;
+  if(MIL.jtype==='pulse') js += 2;
+  const overlap = Math.min(1, MIL.Bj / 2.046);
+  js += 10*Math.log10(Math.max(0.05, overlap));
+  return js;
+}
+function computeBurnThrough(){
+  if(MIL.Pj < 0.001) return 9999;
+  const lambda = 3e8 / (1575.42e6);
+  const Pt = MIL.Pt*1000;
+  const Gt_lin = Math.pow(10, MIL.Gradar/10);
+  const Gj_lin = Math.pow(10, MIL.Gj/10);
+  const sigma = MIL.Rcs;
+  const L = 0.5;
+  const Smin = 1e-19;
+  const num = Pt * Gt_lin * Gt_lin * lambda*lambda * sigma * L;
+  const den = MIL.Pj * Gj_lin * 4*Math.PI * Smin;
+  return Math.sqrt(Math.max(0, num/den)) / 1000;
+}
+function computeRadarRange(){
+  const lambda = 3e8 / (MIL.Fr*1e9);
+  const Pt = MIL.Pt * 1000;
+  const G = Math.pow(10, MIL.Gradar/10);
+  const sigma = MIL.Rcs;
+  const Smin = 1e-13;
+  const L = 1.5;
+  const num = Pt * G * G * lambda*lambda * sigma;
+  const den = Math.pow(4*Math.PI, 3) * Smin * L;
+  return Math.pow(Math.max(1e-6, num/den), 0.25) / 1000;
+}
+function computeCN0(){
+  const base = 45;
+  return base - 10*Math.log10(1 + Math.pow(10, MIL.JS/10));
+}
+function computePE(){
+  const cn = MIL.CN;
+  if(cn < 20) return 500;
+  if(cn < 28) return 50 * Math.pow(28 - cn, 1.5);
+  return 3 + Math.exp(-(cn-28)*0.1);
+}
+
+function recalcMil(){
+  MIL.JS = computeJS();
+  MIL.burn = computeBurnThrough();
+  MIL.CN = computeCN0();
+  MIL.PE = computePE();
+  MIL.radarRange = computeRadarRange();
+
+  const tl = MIL.JS;
+  if(tl > 40) MIL.threatLevel = 'بحرانی';
+  else if(tl > 25) MIL.threatLevel = 'شدید';
+  else if(tl > 10) MIL.threatLevel = 'متوسط';
+  else MIL.threatLevel = 'کم';
+
+  const jsEl = document.getElementById('mmJS');
+  jsEl.textContent = MIL.JS.toFixed(1);
+  jsEl.parentElement.className = 'ml-metric' + (MIL.JS > 25 ? ' hot' : MIL.JS > 10 ? '' : ' ok');
+
+  document.getElementById('mmBt').textContent = MIL.burn >= 9999 ? 'بی‌نهایت' : MIL.burn.toFixed(1);
+  document.getElementById('mmCN').textContent = MIL.CN.toFixed(1);
+  document.getElementById('mmPE').textContent = MIL.PE.toFixed(1);
+  document.getElementById('mtRadarR').textContent = MIL.radarRange.toFixed(1);
+  document.getElementById('mtLevel').textContent = MIL.threatLevel;
+  document.getElementById('mtRcs').textContent = MIL.Rcs.toFixed(3);
+
+  const badge = document.getElementById('mlStatusBadge');
+  const statusEl = document.getElementById('mlStatus');
+  const statusTxt = document.getElementById('mlStatusText');
+  if(MIL.events.length === 0){
+    badge.textContent = 'عادی'; badge.className = 'ml-badge on';
+    statusEl.className = 'ml-status'; statusTxt.textContent = 'همه بخش‌ها سالم است';
+  } else if(MIL.events.some(e=>e.threat === 'بحرانی')){
+    badge.textContent = 'بحرانی'; badge.className = 'ml-badge off';
+    statusEl.className = 'ml-status crit'; statusTxt.textContent = 'تهدید بحرانی فعال است';
+  } else if(MIL.events.some(e=>e.threat === 'شدید')){
+    badge.textContent = 'هشدار'; badge.className = 'ml-badge warn';
+    statusEl.className = 'ml-status warn'; statusTxt.textContent = 'تهدید سطح بالا';
+  } else {
+    badge.textContent = 'احتیاط'; badge.className = 'ml-badge';
+    statusEl.className = 'ml-status warn'; statusTxt.textContent = 'تهدید فعال';
+  }
+
+  const summaryEl = document.getElementById('mlSummary');
+  if(summaryEl){
+    summaryEl.innerHTML =
+      `شدت اخلال فعلی: <b style="color:#fb923c">${MIL.JS.toFixed(1)}</b><br>` +
+      `کیفیت سیگنال: <b style="color:#fb923c">${MIL.CN.toFixed(1)}</b><br>` +
+      `خطای موقعیت ناشی از اخلال: <b style="color:#ff5d6c">${MIL.PE.toFixed(1)} متر</b><br>` +
+      `برد شناسایی رادار: <b style="color:#fb923c">${MIL.radarRange.toFixed(1)} کیلومتر</b><br>` +
+      `سطح تهدید کلی: <b style="color:#ff5d6c">${MIL.threatLevel}</b>`;
+  }
+}
+
+const MIL_EVENTS = {
+  gpsjam:    { fa:'اخلال ماهواره',    threat:'شدید',   kind:'ew', duration:10, action:()=>{ MIL.jammingActive = true; } },
+  gpsspoof:  { fa:'فریب ماهواره',     threat:'بحرانی', kind:'ew', duration:12, action:()=>{ MIL.spoofActive = true; } },
+  rfjam:     { fa:'اخلال رادیویی',    threat:'متوسط',  kind:'ew', duration:8,  action:()=>{ MIL.jammingActive = true; } },
+  emp:       { fa:'موج الکترومغناطیس',threat:'بحرانی', kind:'ew', duration:5,  action:()=>{ MIL.empActive = true; } },
+  radarlock: { fa:'قفل رادار',        threat:'شدید',   kind:'ew', duration:10, action:()=>{ MIL.radarLock = true; } },
+  missile:   { fa:'تهدید موشکی',      threat:'بحرانی', kind:'ew', duration:8,  action:()=>{ MIL.missileActive = true; MIL.tti = 12; } },
+  laser:     { fa:'پرتو لیزری',       threat:'شدید',   kind:'ew', duration:6,  action:()=>{ MIL.laserActive = true; } },
+  cyberinj:  { fa:'داده‌ی جعلی',       threat:'شدید',   kind:'ew', duration:9,  action:()=>{ MIL.tamper = 0.4; } },
+  sam:        { fa:'موشک پدافندی',    threat:'بحرانی', kind:'thr', duration:10 },
+  aaa:        { fa:'توپ ضدهوایی',     threat:'شدید',   kind:'thr', duration:8 },
+  manpads:    { fa:'موشک دوش‌پرتاب',  threat:'شدید',   kind:'thr', duration:7 },
+  interceptor:{ fa:'جنگنده رهگیر',    threat:'شدید',   kind:'thr', duration:9 },
+  dir:        { fa:'مقابله فروسرخ',   threat:'متوسط',  kind:'thr', duration:6 },
+  net:        { fa:'شبکه پدافند',     threat:'بحرانی', kind:'thr', duration:12 },
+  datainj:    { fa:'تزریق داده',      threat:'شدید',   kind:'cyb', duration:10, action:()=>{ MIL.tamper = 0.5; } },
+  mitm:       { fa:'شنود ارتباط',     threat:'شدید',   kind:'cyb', duration:11, action:()=>{ MIL.linkIntegrity = 0.4; } },
+  dos:        { fa:'حمله سیل‌آسا',     threat:'متوسط',  kind:'cyb', duration:8,  action:()=>{ MIL.packetLoss = 0.3; } },
+  malware:    { fa:'بدافزار',         threat:'بحرانی', kind:'cyb', duration:14, action:()=>{ MIL.linkIntegrity = 0.5; MIL.tamper = 0.3; } },
+  keylog:     { fa:'ضبط کلیدها',      threat:'متوسط',  kind:'cyb', duration:10, action:()=>{ MIL.authFailures += 3; } },
+  zeroday:    { fa:'آسیب ناشناخته',   threat:'بحرانی', kind:'cyb', duration:12, action:()=>{ MIL.linkIntegrity = 0.3; MIL.tamper = 0.6; } },
+};
+
+document.querySelectorAll('.ml-ev').forEach(btn => {
+  btn.onclick = () => {
+    const key = btn.dataset.ew || btn.dataset.thr || btn.dataset.cyb;
+    startMilEvent(key, btn);
+  };
+});
+
+function startMilEvent(key, btn){
+  const cfg = MIL_EVENTS[key];
+  if(!cfg) return;
+  const existing = MIL.events.find(e=>e.key===key);
+  if(existing){ stopMilEvent(existing); return; }
+  const ev = {
+    key, fa: cfg.fa, threat: cfg.threat, kind: cfg.kind,
+    t: 0, life: cfg.duration, severity: MIL.severity,
+  };
+  MIL.events.push(ev);
+  btn.classList.add('active');
+  addMilLog('رخداد', `فعال شد · ${cfg.fa} [${cfg.threat}]`, 'row-al');
+  if(cfg.action) cfg.action();
+  flashMilEffect(cfg.kind, cfg.threat);
+  setTimeout(()=>{ if(MIL.events.includes(ev)) stopMilEvent(ev); }, cfg.duration*1000);
+}
+
+function stopMilEvent(ev){
+  MIL.events = MIL.events.filter(e=>e !== ev);
+  const btn = document.querySelector(`.ml-ev[data-ew="${ev.key}"], .ml-ev[data-thr="${ev.key}"], .ml-ev[data-cyb="${ev.key}"]`);
+  if(btn) btn.classList.remove('active');
+  addMilLog('رخداد', `پایان یافت · ${ev.fa}`, 'row-ok');
+  if(!MIL.events.some(e=>e.key==='gpsjam' || e.key==='rfjam')) MIL.jammingActive = false;
+  if(!MIL.events.some(e=>e.key==='gpsspoof')) MIL.spoofActive = false;
+  if(!MIL.events.some(e=>e.key==='emp')) MIL.empActive = false;
+  if(!MIL.events.some(e=>e.key==='radarlock')) MIL.radarLock = false;
+  if(!MIL.events.some(e=>e.key==='missile')) MIL.missileActive = false;
+  if(!MIL.events.some(e=>e.key==='laser')) MIL.laserActive = false;
+  if(!MIL.events.some(e=>e.key==='cyberinj'||e.key==='datainj'||e.key==='malware'||e.key==='zeroday')) MIL.tamper = 0;
+  if(!MIL.events.some(e=>e.key==='mitm'||e.key==='malware'||e.key==='zeroday')) MIL.linkIntegrity = 1.0;
+  if(!MIL.events.some(e=>e.key==='dos')) MIL.packetLoss = 0;
+}
+
+document.getElementById('milRun').onclick = () => {
+  const keys = Object.keys(MIL_EVENTS);
+  const k = keys[Math.floor(Math.random()*keys.length)];
+  const btn = document.querySelector(`.ml-ev[data-ew="${k}"], .ml-ev[data-thr="${k}"], .ml-ev[data-cyb="${k}"]`);
+  startMilEvent(k, btn);
+};
+document.getElementById('milStop').onclick = () => {
+  MIL.events.slice().forEach(e => stopMilEvent(e));
+  MIL.jammingActive = false; MIL.spoofActive = false; MIL.empActive = false;
+  MIL.radarLock = false; MIL.missileActive = false; MIL.laserActive = false;
+  MIL.linkIntegrity = 1.0; MIL.tamper = 0; MIL.packetLoss = 0;
+  addMilLog('سامانه', 'همه تهدیدها متوقف شدند', 'row-ok');
+};
+
+function addMilLog(tag, msg, cls=''){
+  MIL.log.push({tag, msg, cls, t: performance.now()});
+  if(MIL.log.length > 60) MIL.log.shift();
+  const el = document.getElementById('mlLog');
+  if(!el) return;
+  el.innerHTML = MIL.log.slice().reverse().map(l => {
+    const t = ((performance.now() - l.t)/1000).toFixed(1);
+    return `<div class="${l.cls}">[${t} ثانیه] [${l.tag}] ${l.msg}</div>`;
+  }).join('');
+}
+
+const milEffects = [];
+function flashMilEffect(kind, threat){
+  const colorMap = { ew: 0x00d4ff, thr: 0xff5d6c, cyb: 0xa855f7 };
+  const color = colorMap[kind] || 0xffffff;
+  const geo = new THREE.RingGeometry(2, 3, 32);
+  const mat = new THREE.MeshBasicMaterial({color, transparent:true, opacity:0.85, side:THREE.DoubleSide, depthWrite:false});
+  const ring = new THREE.Mesh(geo, mat);
+  ring.rotation.x = -Math.PI/2;
+  ring.position.set(sim.truePos.x, 0.6, sim.truePos.z);
+  scene.add(ring);
+  milEffects.push({ring, t:0, life: 90});
+}
+
+function refreshMilMetrics(){
+  document.getElementById('mcLink').textContent = (MIL.linkIntegrity*100).toFixed(0)+'%';
+  document.getElementById('mcAuth').textContent = MIL.authFailures;
+  document.getElementById('mcLoss').textContent = (MIL.packetLoss*100).toFixed(0)+'%';
+  document.getElementById('mcTamper').textContent = (MIL.tamper*100).toFixed(0)+'%';
+  const linkEl = document.getElementById('mcLink');
+  linkEl.parentElement.className = 'ml-metric' + (MIL.linkIntegrity < 0.7 ? ' hot' : ' ok');
+}
+
+const mlSpectrumCv = document.getElementById('mlSpectrum');
+const mlSpectrumCtx = mlSpectrumCv.getContext('2d');
+function drawMilSpectrum(){
+  const cv = mlSpectrumCv, ctx = mlSpectrumCtx;
+  const w = cv.clientWidth, h = cv.clientHeight;
+  if(cv.width !== w*devicePixelRatio){
+    cv.width = w*devicePixelRatio;
+    cv.height = h*devicePixelRatio;
+  }
+  ctx.setTransform(devicePixelRatio,0,0,devicePixelRatio,0,0);
+  ctx.clearRect(0,0,w,h);
+
+  ctx.strokeStyle = 'rgba(251,146,60,0.08)';
+  ctx.lineWidth = 1;
+  for(let x=0; x<w; x+=16){ ctx.beginPath(); ctx.moveTo(x,0); ctx.lineTo(x,h); ctx.stroke(); }
+
+  const centerIdx = 64;
+  for(let i=0; i<MIL.spectrum.length; i++){
+    const x = (i/MIL.spectrum.length) * w;
+    let base = 0.05 + Math.random()*0.04;
+    const dist = Math.abs(i - centerIdx);
+    if(dist < 4) base += 0.5 * Math.exp(-dist*dist/4);
+    if(MIL.jammingActive){
+      if(MIL.jtype === 'wide') base += 0.6 + Math.random()*0.1;
+      else if(MIL.jtype === 'narrow' && dist < 3) base += 1.5;
+      else if(MIL.jtype === 'sweep') base += 0.4 * Math.abs(Math.sin(i*0.15 + performance.now()*0.003));
+      else if(MIL.jtype === 'pulse') base += (Math.sin(performance.now()*0.01) > 0.5 ? 1.2 : 0.0);
+    }
+    if(MIL.spoofActive && dist < 6) base += 0.5;
+    if(MIL.radarLock) base += 0.2 * Math.exp(-Math.pow((i-90)/8, 2));
+    const barH = Math.min(1, base) * h * 0.85;
+    ctx.fillStyle = MIL.jammingActive ? '#ff5d6c' : (MIL.spoofActive ? '#f5a623' : '#4be8de');
+    ctx.fillRect(x, h - barH, Math.max(1, w/MIL.spectrum.length - 1), barH);
+  }
+
+  ctx.fillStyle = 'rgba(251,146,60,0.75)';
+  ctx.font = '9px Vazirmatn, sans-serif';
+  ctx.fillText('باند ماهواره‌ای', w/2 - 32, 12);
+  if(MIL.jammingActive){ ctx.fillStyle = '#ff5d6c'; ctx.fillText('اخلال فعال', 6, 12); }
+}
+
+let _milTimer = 0;
+function updateMilitary(dt, time){
+  for(let i=MIL.events.length-1; i>=0; i--){ MIL.events[i].t += dt; }
+  if(MIL.missileActive){
+    MIL.tti = Math.max(0, MIL.tti - dt);
+    if(MIL.tti <= 0){ addMilLog('بحرانی', 'برخورد — از کار افتادگی سامانه', 'row-al'); }
+  } else { MIL.tti = 999; }
+  document.getElementById('mtTti').textContent = MIL.tti >= 999 ? '—' : MIL.tti.toFixed(1);
+
+  MIL.spectrum = MIL.spectrum.map((v,i) => {
+    let target = 0.05 + Math.random()*0.04;
+    const dist = Math.abs(i - 64);
+    if(dist < 4) target += 0.5 * Math.exp(-dist*dist/4);
+    if(MIL.jammingActive){
+      if(MIL.jtype === 'wide') target += 0.55;
+      else if(MIL.jtype === 'narrow' && dist < 3) target += 1.2;
+      else if(MIL.jtype === 'sweep') target += 0.35 * Math.abs(Math.sin(i*0.1 + time*0.003));
+      else if(MIL.jtype === 'pulse') target += (Math.sin(time*0.008) > 0.5 ? 1.0 : 0.0);
+    }
+    if(MIL.spoofActive && dist < 6) target += 0.5;
+    return v*0.7 + target*0.3;
+  });
+
+  if(MIL.empActive){
+    if(Math.random() < 0.15){
+      const flash = new THREE.PointLight(0x00ffff, 8, 400);
+      flash.position.set(sim.truePos.x, 30, sim.truePos.z);
+      scene.add(flash);
+      setTimeout(()=>scene.remove(flash), 100);
+    }
+  }
+}
+
+/* ============ MAIN LOOP ============ */
+resetSim();
+
+const clock = new THREE.Clock();
+let _vibTimer = 0;
+
+function animate(){
+  requestAnimationFrame(animate);
+  const dt = Math.min(clock.getDelta(), 0.05);
+  const time = performance.now();
+
+  updateCamera(dt);
+  updateVibration(dt, time);
+  updateMilitary(dt, time);
+
+  if(activePlatformKey==='drone') {
+    drone.userData.rotors.forEach((r,i)=> r.rotation.y += dt*(25+i*3));
+    drone.position.y = activePlatformProfile.visualY + Math.sin(time*0.0015)*0.15;
+    if(drone.userData.navLight){
+      drone.userData.navLight.intensity = (Math.sin(time*0.008) > 0) ? 0.8 : 0.1;
+    }
+  } else {
+    const isMarine = activePlatformKey==='boat' || activePlatformKey==='frigate' || activePlatformKey==='ship';
+    drone.position.y = activePlatformProfile.visualY + (isMarine ? Math.sin(time*0.0012)*0.05 : 0);
+    if(activePlatformKey==='helicopter' && platformModels.helicopter.userData.rotorGroups){
+      platformModels.helicopter.userData.rotorGroups[0].rotation.y += dt*22;
+      platformModels.helicopter.userData.rotorGroups[1].rotation.z += dt*28;
+    }
+  }
+
+  const pathPts = currentPathPts();
+
+  if(params.running && pathPts.length>=2){
+    sim.frame++; sim.t += dt;
+    sim.dist += params.speed*dt*26;
+
+    const prevTrue = sim.truePos.clone();
+    const {pos, angle} = pointOnPath(pathPts, sim.dist);
+    sim.truePos.set(pos.x, 0, pos.z);
+    const vel = new THREE.Vector3().subVectors(sim.truePos, prevTrue);
+
+    sim.bias.x += params.biasDrift*0.05*Math.cos(sim.t*0.6);
+    sim.bias.z += params.biasDrift*0.05*Math.sin(sim.t*0.6);
+
+    const vibX = (VIB._outX || 0) * 0.5;
+    const vibZ = (VIB._outZ || 0) * 0.5;
+
+    let milNoise = 0;
+    let milBiasX = 0, milBiasZ = 0;
+    if(MIL.jammingActive){
+      milNoise += 0.15 + MIL.JS * 0.005;
+      milBiasX += (Math.random()-0.5) * 0.3;
+      milBiasZ += (Math.random()-0.5) * 0.3;
+    }
+    if(MIL.spoofActive){
+      milBiasX += Math.sin(time*0.0005) * 0.8;
+      milBiasZ += Math.cos(time*0.0005) * 0.8;
+    }
+    if(MIL.empActive) milNoise += 2.0;
+    if(MIL.tamper > 0){
+      milBiasX += (Math.random()-0.5) * MIL.tamper * 3;
+      milBiasZ += (Math.random()-0.5) * MIL.tamper * 3;
+    }
+
+    sim.imuPos.x += vel.x + sim.bias.x + gauss()*params.imuNoise*0.9 + vibX*0.35 + milBiasX*0.5;
+    sim.imuPos.z += vel.z + sim.bias.z + gauss()*params.imuNoise*0.9 + vibZ*0.35 + milBiasZ*0.5;
+
+    sim.fusedPos.x += vel.x + sim.bias.x*0.3 + gauss()*params.imuNoise*0.32 + vibX*0.15 + milBiasX*0.2;
+    sim.fusedPos.z += vel.z + sim.bias.z*0.3 + gauss()*params.imuNoise*0.32 + vibZ*0.15 + milBiasZ*0.2;
+
+    const gpsEffOn = params.gpsOn && !MIL.empActive;
+    if(gpsEffOn){
+      sim.gpsPos.x = sim.truePos.x + gauss()*params.gpsNoise*13;
+      sim.gpsPos.z = sim.truePos.z + gauss()*params.gpsNoise*13;
+      if(MIL.jammingActive) sim.gpsPos.x += gauss()*MIL.JS*0.5;
+      if(MIL.spoofActive){
+        sim.gpsPos.x += Math.sin(time*0.001)*3;
+        sim.gpsPos.z += Math.cos(time*0.001)*3;
+      }
+      const Kg = 0.16*(1-params.gpsNoise*0.7) * (MIL.jammingActive ? 0.3 : 1);
+      sim.fusedPos.x += Kg*(sim.gpsPos.x - sim.fusedPos.x);
+      sim.fusedPos.z += Kg*(sim.gpsPos.z - sim.fusedPos.z);
+      if(sim.frame % 22 === 0) spawnBeam(gpsSatPos, new THREE.Vector3(sim.gpsPos.x,0.4,sim.gpsPos.z), 0xf5a623, 18);
+    }
+
+    const qInterval = Math.round(4 + (1-params.qRate)*46);
+    if(sim.frame % qInterval === 0){
+      const qNoiseAmt = (1-params.qPrecision)*9;
+      const qx = sim.truePos.x + gauss()*qNoiseAmt;
+      const qz = sim.truePos.z + gauss()*qNoiseAmt;
+      const Kq = 0.55*params.qPrecision + 0.1;
+      sim.fusedPos.x += Kq*(qx - sim.fusedPos.x);
+      sim.fusedPos.z += Kq*(qz - sim.fusedPos.z);
+      qFlash = 1;
+      spawnBeam(quantumSatPos, new THREE.Vector3(sim.fusedPos.x,0.4,sim.fusedPos.z), 0x4be8de, 20);
+    }
+
+    pushTrail(trailTrue, sim.truePos.x, sim.truePos.z, 0.15);
+    pushTrail(trailImu, sim.imuPos.x, sim.imuPos.z, 0.15);
+    pushTrail(trailFused, sim.fusedPos.x, sim.fusedPos.z, 0.25);
+    if(params.gpsOn) pushTrail(trailGps, sim.gpsPos.x, sim.gpsPos.z, 0.15);
+
+    drone.position.x = sim.truePos.x + (VIB._outX||0)*0.02;
+    drone.position.z = sim.truePos.z + (VIB._outZ||0)*0.02;
+    drone.rotation.y = angle;
+    drone.rotation.z = (VIB._outZ||0) * 0.01;
+    drone.rotation.x = (VIB._outX||0) * 0.01;
+
+    imuMarker.position.set(sim.imuPos.x + (VIB._outX||0)*0.3, 0.5, sim.imuPos.z + (VIB._outZ||0)*0.3);
+    gpsMarker.position.set(sim.gpsPos.x, 0.5, sim.gpsPos.z);
+    gpsMarker.visible = params.gpsOn && !MIL.empActive;
+    fusedMarker.position.set(sim.fusedPos.x + (VIB._outX||0)*0.15, 0.7 + Math.sin(time*0.006)*0.1, sim.fusedPos.z + (VIB._outZ||0)*0.15);
+
+    const imuErr = Math.hypot(sim.imuPos.x-sim.truePos.x, sim.imuPos.z-sim.truePos.z);
+    const fusedErr = Math.hypot(sim.fusedPos.x-sim.truePos.x, sim.fusedPos.z-sim.truePos.z);
+    const gpsErr = (params.gpsOn && !MIL.empActive) ? Math.hypot(sim.gpsPos.x-sim.truePos.x, sim.gpsPos.z-sim.truePos.z) : null;
+
+    el('stat-imu').textContent = imuErr.toFixed(1);
+    el('stat-gps').textContent = (params.gpsOn && !MIL.empActive) ? gpsErr.toFixed(1) : '—';
+    el('stat-fused').textContent = fusedErr.toFixed(1);
+
+    if(sim.frame % 3 === 0){
+      errHist.push({t:sim.frame, imu:+imuErr.toFixed(1), gps: gpsErr===null?null:+gpsErr.toFixed(1), fused:+fusedErr.toFixed(1)});
+      if(errHist.length>90) errHist.shift();
+      updateChart(false);
+    }
+  }
+
+  for(let i=beams.length-1;i>=0;i--){
+    const b = beams[i]; b.t++;
+    b.line.material.opacity = 0.9*(1-b.t/b.life);
+    if(b.t>=b.life){ scene.remove(b.line); beams.splice(i,1); }
+  }
+
+  for(let i=vibRings.length-1;i>=0;i--){
+    const r = vibRings[i]; r.t++;
+    const p = r.t/r.life;
+    r.ring.scale.setScalar(1 + p*8);
+    r.ring.material.opacity = 0.85*(1-p);
+    if(r.t>=r.life){ scene.remove(r.ring); vibRings.splice(i,1); }
+  }
+
+  for(let i=milEffects.length-1;i>=0;i--){
+    const e = milEffects[i]; e.t++;
+    const p = e.t/e.life;
+    e.ring.scale.setScalar(1 + p*15);
+    e.ring.material.opacity = 0.85*(1-p);
+    if(e.t>=e.life){ scene.remove(e.ring); milEffects.splice(i,1); }
+  }
+
+  _vibTimer += dt;
+  if(_vibTimer > 0.08){
+    _vibTimer = 0;
+    drawVibWave();
+    refreshVibMetrics();
+    drawMilSpectrum();
+    refreshMilMetrics();
+  }
+
+  if(sim.frame % 15 === 0) recalcMil();
+
+  drawQuantumHud(time);
+  renderer.render(scene, camera);
+}
+animate();
+
+for(let i=0;i<VIB.historyCap;i++){ VIB.history.push(0); VIB.historyRaw.push(0); }
+
+recalcMil();
+addMilLog('سامانه', 'همه بخش‌ها فعال — آماده به کار', 'row-ok');
+</script>
+</body>
+</html>
